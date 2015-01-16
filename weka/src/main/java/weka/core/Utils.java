@@ -254,6 +254,32 @@ public final class Utils implements RevisionHandler {
 
   /**
    * Pads a string to a specified length, inserting spaces on the left as
+   * required. If the string is too long, it is simply returned unchanged.
+   * 
+   * @param inString the input string
+   * @param length the desired length of the output string
+   * @return the output string
+   */
+  public static String padLeftAndAllowOverflow(String inString, int length) {
+
+    return String.format("%1$" + length + "s", inString);
+  }
+
+  /**
+   * Pads a string to a specified length, inserting spaces on the right as
+   * required. If the string is too long, it is simply returned unchanged.
+   * 
+   * @param inString the input string
+   * @param length the desired length of the output string
+   * @return the output string
+   */
+  public static String padRightAndAllowOverflow(String inString, int length) {
+
+	  return String.format("%1$-" + length + "s", inString);
+  }
+
+  /**
+   * Pads a string to a specified length, inserting spaces on the left as
    * required. If the string is too long, characters are removed (from the
    * right).
    * 
@@ -263,7 +289,7 @@ public final class Utils implements RevisionHandler {
    */
   public static String padLeft(String inString, int length) {
 
-    return fixStringLength(inString, length, false);
+    return String.format("%1$" + length + "." + length + "s", inString);
   }
 
   /**
@@ -277,29 +303,7 @@ public final class Utils implements RevisionHandler {
    */
   public static String padRight(String inString, int length) {
 
-    return fixStringLength(inString, length, true);
-  }
-
-  /**
-   * Pads a string to a specified length, inserting spaces as required. If the
-   * string is too long, characters are removed (from the right).
-   * 
-   * @param inString the input string
-   * @param length the desired length of the output string
-   * @param right true if inserted spaces should be added to the right
-   * @return the output string
-   */
-  private static/* @pure@ */String fixStringLength(String inString, int length,
-    boolean right) {
-
-    if (inString.length() < length) {
-      while (inString.length() < length) {
-        inString = (right ? inString.concat(" ") : " ".concat(inString));
-      }
-    } else if (inString.length() > length) {
-      inString = inString.substring(0, length);
-    }
-    return inString;
+    return String.format("%1$-" + length + "." + length + "s", inString);
   }
 
   /**
@@ -1690,23 +1694,25 @@ public final class Utils implements RevisionHandler {
    */
   public static/* @pure@ */double variance(double[] vector) {
 
-    double sum = 0, sumSquared = 0;
-
-    if (vector.length <= 1) {
-      return 0;
+    if (vector.length <= 1)
+      return Double.NaN;
+    
+    double mean = 0;
+    double var = 0;
+    
+    for (int i = 0; i < vector.length; i++) {
+      double delta = vector[i] - mean;
+      mean += delta/(i + 1);
+      var += (vector[i] - mean)*delta;
     }
-    for (double element : vector) {
-      sum += element;
-      sumSquared += (element * element);
-    }
-    double result = (sumSquared - (sum * sum / vector.length))
-      / (vector.length - 1);
+    
+    var /= vector.length - 1;
 
     // We don't like negative variance
-    if (result < 0) {
+    if (var < 0) {
       return 0;
     } else {
-      return result;
+      return var;
     }
   }
 
