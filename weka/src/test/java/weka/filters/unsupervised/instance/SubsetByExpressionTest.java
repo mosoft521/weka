@@ -83,7 +83,7 @@ public class SubsetByExpressionTest
     result.setExpression(expr);
     return result;
   }
-  
+
   /**
    * Tests the "ismissing" functionality.
    */
