@@ -37,7 +37,8 @@ import weka.core.WeightedInstancesHandler;
  * (weka.classifiers.trees.lmt.LMT) and standalone logistic regression
  * (weka.classifiers.functions.SimpleLogistic).
  * 
- * <!-- options-start --> Valid options are:
+ <!-- options-start -->
+ * Valid options are:
  * <p/>
  * 
  * <pre>
@@ -46,7 +47,7 @@ import weka.core.WeightedInstancesHandler;
  *  may output additional info to the console
  * </pre>
  * 
- * <!-- options-end -->
+ <!-- options-end -->
  * 
  * @author Niels Landwehr
  * @author Marc Sumner
@@ -129,6 +130,7 @@ public class LogisticBase extends AbstractClassifier implements
     m_maxIterations = 500;
     m_useAIC = false;
     m_numParameters = 0;
+    m_numDecimalPlaces = 2;
   }
 
   /**
@@ -150,6 +152,7 @@ public class LogisticBase extends AbstractClassifier implements
     m_maxIterations = 500;
     m_useAIC = false;
     m_numParameters = 0;
+    m_numDecimalPlaces = 2;
   }
 
   /**
@@ -1153,13 +1156,13 @@ public class LogisticBase extends AbstractClassifier implements
     for (int j = 0; j < m_numClasses; j++) {
       s.append("\nClass " + j + " :\n");
       // constant term
-      s.append(Utils.doubleToString(coefficients[j][0], 4, 2) + " + \n");
+      s.append(Utils.doubleToString(coefficients[j][0], 2 + m_numDecimalPlaces, m_numDecimalPlaces) + " + \n");
       for (int i = 0; i < attributes[j].length; i++) {
         // attribute/coefficient pairs
         s.append("[" + m_numericDataHeader.attribute(attributes[j][i]).name()
           + "]");
         s.append(" * "
-          + Utils.doubleToString(coefficients[j][attributes[j][i] + 1], 4, 2));
+          + Utils.doubleToString(coefficients[j][attributes[j][i] + 1], 2 + m_numDecimalPlaces, m_numDecimalPlaces));
         if (i != attributes[j].length - 1) {
           s.append(" +");
         }
