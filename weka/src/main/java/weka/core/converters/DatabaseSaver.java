@@ -29,17 +29,13 @@ import java.text.SimpleDateFormat;
 import java.util.Enumeration;
 import java.util.Vector;
 
-import weka.core.Attribute;
-import weka.core.Capabilities;
+import javax.swing.*;
+
+import weka.core.*;
 import weka.core.Capabilities.Capability;
-import weka.core.Environment;
-import weka.core.EnvironmentHandler;
-import weka.core.Instance;
-import weka.core.Instances;
-import weka.core.Option;
-import weka.core.OptionHandler;
-import weka.core.RevisionUtils;
-import weka.core.Utils;
+import weka.gui.FilePropertyMetadata;
+import weka.gui.PasswordProperty;
+import weka.core.OptionMetadata;
 
 /**
  * <!-- globalinfo-start --> Writes to a database (tested with MySQL, InstantDB,
@@ -168,7 +164,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   protected String m_Password;
 
   /** the custom props file to use instead of default one. */
-  protected File m_CustomPropsFile = null;
+  protected File m_CustomPropsFile = new File("${user.home}");
 
   /**
    * Whether to truncate (i.e. drop and then recreate) the table if it already
@@ -189,6 +185,48 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
     resetOptions();
   }
 
+  /**
+   * Main method.
+   *
+   * @param options should contain the options of a Saver.
+   */
+  public static void main(String[] options) {
+
+    StringBuffer text = new StringBuffer();
+    text.append("\n\nDatabaseSaver options:\n");
+    try {
+      DatabaseSaver asv = new DatabaseSaver();
+      try {
+        Enumeration<Option> enumi = asv.listOptions();
+        while (enumi.hasMoreElements()) {
+          Option option = enumi.nextElement();
+          text.append(option.synopsis() + '\n');
+          text.append(option.description() + '\n');
+        }
+        asv.setOptions(options);
+        asv.setDestination(asv.getUrl());
+      } catch (Exception ex) {
+        ex.printStackTrace();
+      }
+      // incremental
+
+      /*
+       * asv.setRetrieval(INCREMENTAL); Instances instances =
+       * asv.getInstances(); asv.setStructure(instances); for(int i = 0; i <
+       * instances.numInstances(); i++){ //last instance is null and finishes
+       * incremental saving asv.writeIncremental(instances.instance(i)); }
+       * asv.writeIncremental(null);
+       */
+
+      // batch
+      asv.writeBatch();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      System.out.println(text);
+    }
+
+  }
+
   private void checkEnv() {
     if (m_env == null) {
       m_env = Environment.getSystemWide();
@@ -197,7 +235,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Set the environment variables to use.
-   * 
+   *
    * @param env the environment variables to use
    */
   @Override
@@ -218,12 +256,12 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   /**
    * Initializes a new DatabaseConnection object, either default one or from
    * custom props file.
-   * 
+   *
    * @return the DatabaseConnection object
    * @see #m_CustomPropsFile
    */
   protected DatabaseConnection newDatabaseConnection() throws Exception {
-    DatabaseConnection result;
+    DatabaseConnection result = new DatabaseConnection();
     checkEnv();
 
     if (m_CustomPropsFile != null) {
@@ -235,18 +273,19 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
         pFile = new File(pPath);
       } catch (Exception ex) {
       }
-      result = new DatabaseConnection(pFile);
-    } else {
-      result = new DatabaseConnection();
+      if (pFile.isFile()) {
+        result = new DatabaseConnection(pFile);
+      }
     }
 
     m_createText = result.getProperties().getProperty("CREATE_STRING");
     m_createDouble = result.getProperties().getProperty("CREATE_DOUBLE");
     m_createInt = result.getProperties().getProperty("CREATE_INT");
-    m_createDate = result.getProperties()
-      .getProperty("CREATE_DATE", "DATETIME");
-    m_DateFormat = new SimpleDateFormat(result.getProperties().getProperty(
-      "DateFormat", "yyyy-MM-dd HH:mm:ss"));
+    m_createDate =
+      result.getProperties().getProperty("CREATE_DATE", "DATETIME");
+    m_DateFormat =
+      new SimpleDateFormat(result.getProperties().getProperty("DateFormat",
+        "yyyy-MM-dd HH:mm:ss"));
     m_idColumn = result.getProperties().getProperty("idColumn");
 
     return result;
@@ -317,7 +356,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Returns a string describing this Saver.
-   * 
+   *
    * @return a description of the Saver suitable for displaying in the
    *         explorer/experimenter gui
    */
@@ -326,8 +365,20 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Gets the table's name.
+   *
+   * @return the table's name
+   */
+  @OptionMetadata(displayName = "Table name",
+    description = "Sets the name of the table", displayOrder = 4)
+  public String getTableName() {
+
+    return m_tableName;
+  }
+
+  /**
    * Sets the table's name.
-   * 
+   *
    * @param tn the name of the table
    */
   public void setTableName(String tn) {
@@ -336,18 +387,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Gets the table's name.
-   * 
-   * @return the table's name
-   */
-  public String getTableName() {
-
-    return m_tableName;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String tableNameTipText() {
@@ -356,9 +397,22 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Get whether to truncate (i.e. drop and recreate) the table if it already
+   * exits. If false, then new data is appended to the table.
+   *
+   * @return true if the table should be truncated first (if it exists).
+   */
+  @OptionMetadata(displayName = "Truncate table",
+    description = "Truncate (i.e. drop and recreate) table if it already exists",
+    displayOrder = 6)
+  public boolean getTruncate() {
+    return m_truncate;
+  }
+
+  /**
    * Set whether to truncate (i.e. drop and recreate) the table if it already
    * exits. If false, then new data is appended to the table.
-   * 
+   *
    * @param t true if the table should be truncated first (if it exists).
    */
   public void setTruncate(boolean t) {
@@ -366,18 +420,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Get whether to truncate (i.e. drop and recreate) the table if it already
-   * exits. If false, then new data is appended to the table.
-   * 
-   * @param t true if the table should be truncated first (if it exists).
-   */
-  public boolean getTruncate() {
-    return m_truncate;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String truncateTipText() {
@@ -385,8 +429,24 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Gets whether or not a primary key will be generated automatically.
+   *
+   * @return true if a primary key column will be generated, false otherwise
+   */
+  @OptionMetadata(
+    displayName = "Automatic primary key",
+    description = "If set to true, a primary key column is generated automatically (containing the row number as INTEGER). The name of the key is read from DatabaseUtils (idColumn)"
+      + " This primary key can be used for incremental loading (requires an unique key). This primary key will not be loaded as an attribute.",
+    displayOrder = 7)
+  public
+    boolean getAutoKeyGeneration() {
+
+    return m_id;
+  }
+
+  /**
    * En/Dis-ables the automatic generation of a primary key.
-   * 
+   *
    * @param flag flag for automatic key-genereration
    */
   public void setAutoKeyGeneration(boolean flag) {
@@ -395,18 +455,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Gets whether or not a primary key will be generated automatically.
-   * 
-   * @return true if a primary key column will be generated, false otherwise
-   */
-  public boolean getAutoKeyGeneration() {
-
-    return m_id;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return tip text for this property
    */
   public String autoKeyGenerationTipText() {
@@ -416,9 +466,25 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Gets whether or not the relation name is used as name of the table.
+   *
+   * @return true if the relation name is used as the name of the table, false
+   *         otherwise
+   */
+  @OptionMetadata(
+    displayName = "Use relation name",
+    description = "If set to true, the relation name will be used as name for the database table. Otherwise the user has to provide a table name.",
+    displayOrder = 5)
+  public
+    boolean getRelationForTableName() {
+
+    return m_tabName;
+  }
+
+  /**
    * En/Dis-ables that the relation name is used for the name of the table
    * (default enabled).
-   * 
+   *
    * @param flag if true the relation name is used as table name
    */
   public void setRelationForTableName(boolean flag) {
@@ -427,19 +493,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Gets whether or not the relation name is used as name of the table.
-   * 
-   * @return true if the relation name is used as the name of the table, false
-   *         otherwise
-   */
-  public boolean getRelationForTableName() {
-
-    return m_tabName;
-  }
-
-  /**
    * Returns the tip text fo this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String relationForTableNameTipText() {
@@ -448,8 +503,21 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Gets the database URL.
+   *
+   * @return the URL
+   */
+  @OptionMetadata(displayName = "Database URL",
+    description = "The URL of the database", displayOrder = 1)
+  @Override
+  public String getUrl() {
+
+    return m_URL;
+  }
+
+  /**
    * Sets the database URL.
-   * 
+   *
    * @param url the URL
    */
   @Override
@@ -466,19 +534,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Gets the database URL.
-   * 
-   * @return the URL
-   */
-  @Override
-  public String getUrl() {
-
-    return m_URL;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String urlTipText() {
@@ -487,10 +544,24 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Gets the database user.
+   *
+   * @return the user name
+   */
+  @Override
+  public String getUser() {
+
+    // return m_DataBaseConnection.getUsername();
+    return m_Username;
+  }
+
+  /**
    * Sets the database user.
-   * 
+   *
    * @param user the user name
    */
+  @OptionMetadata(displayName = "Username",
+    description = "The user name for the database", displayOrder = 2)
   @Override
   public void setUser(String user) {
     checkEnv();
@@ -505,20 +576,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Gets the database user.
-   * 
-   * @return the user name
-   */
-  @Override
-  public String getUser() {
-
-    // return m_DataBaseConnection.getUsername();
-    return m_Username;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String userTipText() {
@@ -527,8 +586,21 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Returns the database password.
+   *
+   * @return the database password
+   */
+  @OptionMetadata(displayName = "Password",
+    description = "The database password", displayOrder = 3)
+  @PasswordProperty
+  public String getPassword() {
+    // return m_DataBaseConnection.getPassword();
+    return m_Password;
+  }
+
+  /**
    * Sets the database password.
-   * 
+   *
    * @param password the password
    */
   @Override
@@ -544,18 +616,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Returns the database password.
-   * 
-   * @return the database password
-   */
-  public String getPassword() {
-    // return m_DataBaseConnection.getPassword();
-    return m_Password;
-  }
-
-  /**
    * Returns the tip text for this property.
-   * 
+   *
    * @return the tip text for this property
    */
   public String passwordTipText() {
@@ -564,8 +626,24 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Returns the custom properties file in use, if any.
+   *
+   * @return the custom props file, null if none used
+   */
+  @OptionMetadata(
+    displayName = "DB config file",
+    description = "The custom properties that the user can use to override the default ones.",
+    displayOrder = 8)
+  @FilePropertyMetadata(fileChooserDialogType = JFileChooser.OPEN_DIALOG,
+    directoriesOnly = false)
+  public
+    File getCustomPropsFile() {
+    return m_CustomPropsFile;
+  }
+
+  /**
    * Sets the custom properties file to use.
-   * 
+   *
    * @param value the custom props file to load database parameters from, use
    *          null or directory to disable custom properties.
    */
@@ -574,17 +652,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
-   * Returns the custom properties file in use, if any.
-   * 
-   * @return the custom props file, null if none used
-   */
-  public File getCustomPropsFile() {
-    return m_CustomPropsFile;
-  }
-
-  /**
    * The tip text for this property.
-   * 
+   *
    * @return the tip text
    */
   public String customPropsFileTipText() {
@@ -593,7 +662,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Sets the database url.
-   * 
+   *
    * @param url the database url
    * @param userName the user name
    * @param password the password
@@ -617,7 +686,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Sets the database url.
-   * 
+   *
    * @param url the database url
    */
   public void setDestination(String url) {
@@ -655,7 +724,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Returns the Capabilities of this saver.
-   * 
+   *
    * @return the capabilities of this object
    * @see Capabilities
    */
@@ -683,7 +752,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Opens a connection to the database.
-   * 
+   *
    */
   public void connectToDatabase() {
 
@@ -699,7 +768,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   /**
    * Writes the structure (header information) to a database by creating a new
    * table.
-   * 
+   *
    * @throws Exception if something goes wrong
    */
   private void writeStructure() throws Exception {
@@ -709,8 +778,8 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
     query.append("CREATE TABLE ");
     m_resolvedTableName = m_env.substitute(m_tableName);
     if (m_tabName || m_resolvedTableName.equals("")) {
-      m_resolvedTableName = m_DataBaseConnection.maskKeyword(structure
-        .relationName());
+      m_resolvedTableName =
+        m_DataBaseConnection.maskKeyword(structure.relationName());
     }
     if (m_DataBaseConnection.getUpperCase()) {
       m_resolvedTableName = m_resolvedTableName.toUpperCase();
@@ -793,7 +862,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * inserts the given instance into the table.
-   * 
+   *
    * @param inst the instance to insert
    * @throws Exception if something goes wrong
    */
@@ -841,7 +910,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
    * Saves an instances incrementally. Structure has to be set by using the
    * setStructure() method or setInstances() method. When a structure is set, a
    * table is created.
-   * 
+   *
    * @param inst the instance to save
    * @throws IOException throws IOEXception.
    */
@@ -904,7 +973,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Writes a Batch of instances.
-   * 
+   *
    * @throws IOException throws IOException
    */
   @Override
@@ -941,7 +1010,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Prints an exception.
-   * 
+   *
    * @param ex the exception to print
    */
   private void printException(Exception ex) {
@@ -963,7 +1032,7 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
 
   /**
    * Gets the setting.
-   * 
+   *
    * @return the current setting
    */
   @Override
@@ -1009,53 +1078,6 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
     }
 
     return options.toArray(new String[options.size()]);
-  }
-
-  /**
-   * Lists the available options.
-   * 
-   * @return an enumeration of the available options
-   */
-  @Override
-  public Enumeration<Option> listOptions() {
-
-    Vector<Option> newVector = new Vector<Option>();
-
-    newVector.addElement(new Option("\tThe JDBC URL to connect to.\n"
-      + "\t(default: from DatabaseUtils.props file)", "url", 1,
-      "-url <JDBC URL>"));
-
-    newVector.addElement(new Option(
-      "\tThe user to connect with to the database.\n" + "\t(default: none)",
-      "user", 1, "-user <name>"));
-
-    newVector
-      .addElement(new Option(
-        "\tThe password to connect with to the database.\n"
-          + "\t(default: none)", "password", 1, "-password <password>"));
-
-    newVector.addElement(new Option("\tThe name of the table.\n"
-      + "\t(default: the relation name)", "T", 1, "-T <table name>"));
-
-    newVector.addElement(new Option(
-      "\tTruncate (i.e. delete any data) in table before inserting",
-      "truncate", 0, "-truncate"));
-
-    newVector.addElement(new Option(
-      "\tAdd an ID column as primary key. The name is specified\n"
-        + "\tin the DatabaseUtils file ('idColumn'). The DatabaseLoader\n"
-        + "\twon't load this column.", "P", 0, "-P"));
-
-    newVector.add(new Option(
-      "\tThe custom properties file to use instead of default ones,\n"
-        + "\tcontaining the database parameters.\n" + "\t(default: none)",
-      "custom-props", 1, "-custom-props <file>"));
-
-    newVector.addElement(new Option(
-      "\tInput file in arff format that should be saved in database.", "i", 1,
-      "-i <input file name>"));
-
-    return newVector.elements();
   }
 
   /**
@@ -1181,54 +1203,59 @@ public class DatabaseSaver extends AbstractSaver implements BatchConverter,
   }
 
   /**
+   * Lists the available options.
+   *
+   * @return an enumeration of the available options
+   */
+  @Override
+  public Enumeration<Option> listOptions() {
+
+    Vector<Option> newVector = new Vector<Option>();
+
+    newVector.addElement(new Option("\tThe JDBC URL to connect to.\n"
+      + "\t(default: from DatabaseUtils.props file)", "url", 1,
+      "-url <JDBC URL>"));
+
+    newVector.addElement(new Option(
+      "\tThe user to connect with to the database.\n" + "\t(default: none)",
+      "user", 1, "-user <name>"));
+
+    newVector
+      .addElement(new Option(
+        "\tThe password to connect with to the database.\n"
+          + "\t(default: none)", "password", 1, "-password <password>"));
+
+    newVector.addElement(new Option("\tThe name of the table.\n"
+      + "\t(default: the relation name)", "T", 1, "-T <table name>"));
+
+    newVector.addElement(new Option(
+      "\tTruncate (i.e. delete any data) in table before inserting",
+      "truncate", 0, "-truncate"));
+
+    newVector.addElement(new Option(
+      "\tAdd an ID column as primary key. The name is specified\n"
+        + "\tin the DatabaseUtils file ('idColumn'). The DatabaseLoader\n"
+        + "\twon't load this column.", "P", 0, "-P"));
+
+    newVector.add(new Option(
+      "\tThe custom properties file to use instead of default ones,\n"
+        + "\tcontaining the database parameters.\n" + "\t(default: none)",
+      "custom-props", 1, "-custom-props <file>"));
+
+    newVector.addElement(new Option(
+      "\tInput file in arff format that should be saved in database.", "i", 1,
+      "-i <input file name>"));
+
+    return newVector.elements();
+  }
+
+  /**
    * Returns the revision string.
-   * 
+   *
    * @return the revision
    */
   @Override
   public String getRevision() {
     return RevisionUtils.extract("$Revision$");
-  }
-
-  /**
-   * Main method.
-   * 
-   * @param options should contain the options of a Saver.
-   */
-  public static void main(String[] options) {
-
-    StringBuffer text = new StringBuffer();
-    text.append("\n\nDatabaseSaver options:\n");
-    try {
-      DatabaseSaver asv = new DatabaseSaver();
-      try {
-        Enumeration<Option> enumi = asv.listOptions();
-        while (enumi.hasMoreElements()) {
-          Option option = enumi.nextElement();
-          text.append(option.synopsis() + '\n');
-          text.append(option.description() + '\n');
-        }
-        asv.setOptions(options);
-        asv.setDestination(asv.getUrl());
-      } catch (Exception ex) {
-        ex.printStackTrace();
-      }
-      // incremental
-
-      /*
-       * asv.setRetrieval(INCREMENTAL); Instances instances =
-       * asv.getInstances(); asv.setStructure(instances); for(int i = 0; i <
-       * instances.numInstances(); i++){ //last instance is null and finishes
-       * incremental saving asv.writeIncremental(instances.instance(i)); }
-       * asv.writeIncremental(null);
-       */
-
-      // batch
-      asv.writeBatch();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      System.out.println(text);
-    }
-
   }
 }

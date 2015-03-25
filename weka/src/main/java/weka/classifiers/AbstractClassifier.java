@@ -52,7 +52,8 @@ public abstract class AbstractClassifier implements Classifier, Cloneable,
   /**
    * The number of decimal places used when printing numbers in the model.
    */
-  protected int m_numDecimalPlaces = 2;
+  public static int NUM_DECIMAL_PLACES_DEFAULT = 2;
+  protected int m_numDecimalPlaces = NUM_DECIMAL_PLACES_DEFAULT;
 
   /**
    * Creates a new instance of a classifier given it's class name and (optional)
@@ -211,8 +212,9 @@ public abstract class AbstractClassifier implements Classifier, Cloneable,
    */
   @Override
   public Enumeration<Option> listOptions() {
-
-    Vector<Option> newVector = new Vector<Option>(2);
+    
+    Vector<Option> newVector =
+      Option.listOptionsForClassHierarchy(this.getClass(), AbstractClassifier.class);
 
     newVector.addElement(new Option(
       "\tIf set, classifier is run in debug mode and\n"
@@ -241,6 +243,9 @@ public abstract class AbstractClassifier implements Classifier, Cloneable,
   public String[] getOptions() {
 
     Vector<String> options = new Vector<String>();
+    for (String s : Option.getOptionsForHierarchy(this, AbstractClassifier.class)) {
+      options.add(s);
+    }
 
     if (getDebug()) {
       options.add("-output-debug-info");
@@ -248,8 +253,10 @@ public abstract class AbstractClassifier implements Classifier, Cloneable,
     if (getDoNotCheckCapabilities()) {
       options.add("-do-not-check-capabilities");
     }
-    options.add("-num-decimal-places");
-    options.add("" + getNumDecimalPlaces());
+    if (getNumDecimalPlaces() != NUM_DECIMAL_PLACES_DEFAULT) {
+      options.add("-num-decimal-places");
+      options.add("" + getNumDecimalPlaces());
+    }
 
     return options.toArray(new String[0]);
   }
@@ -274,6 +281,7 @@ public abstract class AbstractClassifier implements Classifier, Cloneable,
   @Override
   public void setOptions(String[] options) throws Exception {
 
+    Option.setOptionsForHierarchy(options, this, AbstractClassifier.class);
     setDebug(Utils.getFlag("output-debug-info", options));
     setDoNotCheckCapabilities(Utils.getFlag("do-not-check-capabilities",
       options));
