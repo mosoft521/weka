@@ -281,7 +281,7 @@ public class Option implements RevisionHandler {
               options
                 .add(getOptionStringForOptionHandler((OptionHandler) value));
             } else if (value instanceof SelectedTag) {
-              options.add("" + ((SelectedTag)value).getSelectedTag().getID());
+              options.add("" + ((SelectedTag)value).getSelectedTag().getReadable());
             } else {
               // check for boolean/flag
               if (parameterDescription.commandLineParamIsFlag()) {
@@ -295,7 +295,12 @@ public class Option implements RevisionHandler {
                     .add("-" + parameterDescription.commandLineParamName());
                 }
               } else {
-                options.add(value.toString());
+                if (value.toString().length() > 0) {
+                  options.add(value.toString());
+                } else {
+                  // don't allow empty strings
+                  options.remove(options.size() - 1);
+                }
               }
             }
           }
