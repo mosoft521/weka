@@ -19,7 +19,7 @@
  *
  */
 
-package weka.gui.beans;
+package weka.core.metastore;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,21 +29,22 @@ import java.util.Map;
 import java.util.Set;
 
 import weka.core.WekaPackageManager;
+import weka.core.metastore.MetaStore;
 import weka.core.xml.XMLBasicSerialization;
 
 /**
- * A simple default implementation of KFMetaStore that uses Weka's XML
+ * A simple default implementation of MetaStore that uses Weka's XML
  * serialization mechanism to persist entries as XML files in
- * ${WEKA_HOME}/kfMetaStore
+ * ${WEKA_HOME}/wekaMetaStore
  * 
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
  * @version $Revision$
  */
-public class XMLFileBasedKFMetaStore implements KFMetaStore {
+public class XMLFileBasedMetaStore implements MetaStore {
 
   /** The default location for the XML files */
   public static final String DEFAULT_STORE_LOCATION =
-    WekaPackageManager.WEKA_HOME.toString() + File.separator + "kfMetaStore";
+    WekaPackageManager.WEKA_HOME.toString() + File.separator + "wekaMetaStore";
 
   /** The current home of the store */
   protected File m_storeHome = new File(DEFAULT_STORE_LOCATION);
@@ -233,6 +234,9 @@ public class XMLFileBasedKFMetaStore implements KFMetaStore {
     }
   }
 
+  /**
+   * Unlocks the metastore
+   */
   protected void unlockStore() {
     File lock = new File(m_storeHome, ".lock");
     lock.delete();

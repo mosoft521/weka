@@ -19,22 +19,21 @@
  *
  */
 
-package weka.gui.beans;
+package weka.core.metastore;
 
 import java.io.IOException;
 import java.util.Set;
 
 /**
- * Interface for Knowledge Flow metastore implementations. The metastore is a
- * simple storage place that can be used, as an example, for storing named
- * configuration settings (e.g. reusable database connections). The metastore is
- * publically available to clients (including KF steps) via
- * BeansProperties.getMetaStore().
+ * Interface for metastore implementations. The metastore is a simple storage
+ * place that can be used, as an example, for storing named configuration
+ * settings (e.g. general application settings, reusable database connections
+ * etc.).
  * 
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
  * @version $Revision$
  */
-public interface KFMetaStore {
+public interface MetaStore {
 
   /**
    * Get a list of all named meta stores

@@ -107,11 +107,43 @@ public class MapReduceJobConfig extends AbstractHadoopJobConfig implements
   public static final String MAPRED_MAX_SPLIT_SIZE = "mapredMaxSplitSize";
 
   /** Internal key for the Hadoop property for the job tracker host */
-  protected static final String HADOOP_JOB_TRACKER_HOST = "mapred.job.tracker";
+  public static final String HADOOP_JOB_TRACKER_HOST = "mapred.job.tracker";
 
-  /** Internal key for the Hadoop property for the maximum block size */
-  protected static final String HADOOP_MAPRED_MAX_SPLIT_SIZE =
+  /** Internal key for the Hadoop property for the yarn resource manager address */
+  public static final String YARN_RESOURCE_MANAGER_ADDRESS =
+    "yarn.resourcemanager.address";
+
+  /**
+   * Internal key for the Hadoop property for the yarn resource manager
+   * scheduler address. Weka will use yarn.resource.manager.address:8030 to set
+   * this. If this is not appropriate for a particular cluster it can be
+   * overridden using -user-prop arguments to jobs, or by placing the cluster
+   * configuration directory in the classpath when running jobs.
+   */
+  public static final String YARN_RESOURCE_MANAGER_SCHEDULER_ADDRESS =
+    "yarn.resourcemanager.scheduler.address";
+
+  /** Internal key for the Hadoop 1 property for the maximum block size */
+  public static final String HADOOP_MAPRED_MAX_SPLIT_SIZE =
     "mapred.max.split.size";
+
+  /** Internal key for the Haddop 2 property for the maximum block size */
+  public static final String HADOOP2_MAPRED_MAX_SPLIT_SIZE =
+    "mapreduce.input.fileinputformat.split.maxsize";
+
+  /**
+   * Internal key for the Hadoop 1 property for the maximum number of number
+   * of reducers to run per node
+   */
+  public static final String HADOOP_TASKTRACKER_REDUCE_TASKS_MAXIMUM =
+    "mapred.tasktracker.reduce.tasks.maximum";
+
+  /**
+   * Internal key for the Hadoop 2 property for the maximum number of number
+   * of reducers to run per node
+   */
+  public static final String HADOOP2_TASKTRACKER_REDUCE_TASKS_MAXIMUM =
+    "mapreduce.tasktracker.reduce.tasks.maximum";
 
   /** For serialization */
   private static final long serialVersionUID = -1721850598954532369L;
@@ -125,8 +157,13 @@ public class MapReduceJobConfig extends AbstractHadoopJobConfig implements
   public MapReduceJobConfig() {
 
     // defaults
+    if (AbstractHadoopJobConfig.isHadoop2()) {
+      // default port for resource manager
+      setJobTrackerPort("8032");
+    } else {
+      setJobTrackerPort("8020");
+    }
     setJobTrackerHost("localhost");
-    setJobTrackerPort("8020");
     getHDFSConfig().setHDFSHost("localhost");
     getHDFSConfig().setHDFSPort("8021");
 
@@ -158,9 +195,10 @@ public class MapReduceJobConfig extends AbstractHadoopJobConfig implements
     }
 
     result.addElement(new Option(
-      "\tJob tracker hostname. (default: localhost)", "jobtracker-host", 1,
-      "-jobtracker-host <hostname>"));
-    result.addElement(new Option("\tJob tracker port. (default 8021)",
+      "\tJob tracker/resource manager hostname. (default: localhost)",
+      "jobtracker-host", 1, "-jobtracker-host <hostname>"));
+    result.addElement(new Option(
+      "\tJob tracker/resource manager port. (default 8021/8032)",
       "jobtracker-port", 1, "-jobtracker-port <port number>"));
     result.addElement(new Option("\tThe number of maps (hint to MR).",
       "num-maps", 1, "-num-maps <integer>"));
@@ -703,16 +741,34 @@ public class MapReduceJobConfig extends AbstractHadoopJobConfig implements
     Environment env) throws IOException, ClassNotFoundException {
 
     String jobTracker = getJobTrackerHost() + ":" + getJobTrackerPort();
-    System.err.println("Using jobtracker: " + jobTracker);
     if (DistributedJobConfig.isEmpty(jobTracker)) {
-      System.err.println("No JobTracker set - running locally...");
+      System.err.println("No "
+        + (AbstractHadoopJobConfig.isHadoop2() ? "resource manager "
+          : "JobTracker ") + "set - running locally...");
     } else {
       jobTracker = environmentSubstitute(jobTracker, env);
-      conf.set(HADOOP_JOB_TRACKER_HOST, jobTracker);
+      if (AbstractHadoopJobConfig.isHadoop2()) {
+        conf.set(YARN_RESOURCE_MANAGER_ADDRESS, jobTracker);
+        conf.set(YARN_RESOURCE_MANAGER_SCHEDULER_ADDRESS,
+          environmentSubstitute(getJobTrackerHost(), env) + ":8030");
+      } else {
+        conf.set(HADOOP_JOB_TRACKER_HOST, jobTracker);
+      }
+    }
+    System.err.println("Using "
+      + (AbstractHadoopJobConfig.isHadoop2() ? "resource manager: "
+        : "jobtracker: ") + jobTracker);
+
+    if (AbstractHadoopJobConfig.isHadoop2()) {
+      // a few other properties needed to run against Yarn
+      conf.set("yarn.nodemanager.aux-services", "mapreduce_shuffle");
+      conf.set("mapreduce.framework.name", "yarn");
     }
 
     if (!DistributedJobConfig.isEmpty(getMapredMaxSplitSize())) {
-      conf.set(HADOOP_MAPRED_MAX_SPLIT_SIZE, getMapredMaxSplitSize());
+      conf.set(
+        AbstractHadoopJobConfig.isHadoop2() ? HADOOP2_MAPRED_MAX_SPLIT_SIZE
+          : HADOOP_MAPRED_MAX_SPLIT_SIZE, getMapredMaxSplitSize());
     }
 
     // Do any user supplied properties here before creating the Job

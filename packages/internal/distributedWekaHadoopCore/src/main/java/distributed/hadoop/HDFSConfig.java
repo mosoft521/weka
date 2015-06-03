@@ -52,13 +52,15 @@ public class HDFSConfig extends AbstractHadoopJobConfig implements
   public static final String HDFS_PORT = "hdfsPort";
 
   /** property in core-site.xml that specifies the host running the namenode */
-  public static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
+  public static final String HADOOP_FS_DEFAULT_NAME =
+    isHadoop2() ? "fs.defaultFS" : "fs.default.name";
 
   /**
    * property in the core-site.xml that specifies how many times to try to
    * contact the name node before giving up
    */
-  public static final String IPC_CLIENT_CONNECT_MAX_RETRIES = "ipc.client.connect.max.retries";
+  public static final String IPC_CLIENT_CONNECT_MAX_RETRIES =
+    "ipc.client.connect.max.retries";
 
   /** Default port for the name node */
   public static final String DEFAULT_PORT = "8020";
