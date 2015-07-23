@@ -311,7 +311,7 @@ public class PythonSession {
    * @param debug true for debugging output
    * @throws WekaException if a problem occurs
    */
-  public void instancesToPythonAsScikietLearn(Instances instances,
+  public void instancesToPythonAsScikitLearn(Instances instances,
     String pythonFrameName, boolean debug) throws WekaException {
     try {
       ServerUtils.sendInstancesScikitLearn(instances, pythonFrameName,
@@ -629,21 +629,18 @@ public class PythonSession {
         "from sklearn import datasets\nfrom pandas import DataFrame\ndiabetes = "
           + "datasets.load_diabetes()\ndd = DataFrame(diabetes.data)\n";
       session.executeScript(script, true);
-      Instances iris =
-        new Instances(new FileReader("/Users/mhall/datasets/UCI/iris.arff"));
-      session.instancesToPython(iris, "iris", true);
+
+      script = "def foo():\n\treturn 100\n\nx = foo()\n";
+      session.executeScript(script, true);
+
       // BufferedImage img = session.getImageFromPython("fig", true);
       List<String[]> vars = session.getVariableListFromPython(true);
       for (String[] v : vars) {
         System.err.println(v[0] + ":" + v[1]);
       }
-
-      Instances irisResult = session.getDataFrameAsInstances("iris", true);
-      System.err.println(irisResult);
-
-      Instances result = session.getDataFrameAsInstances("dd", true);
-      System.err.println(result);
-
+      
+      Object result = session.getVariableValueFromPythonAsJson("x", true);
+      System.err.println("Value of x: " + result.toString());
     } catch (Exception ex) {
       ex.printStackTrace();
     }

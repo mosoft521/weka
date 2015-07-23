@@ -27,7 +27,6 @@ import pandas as pd
 import matplotlib
 
 _global_python3 = sys.version_info >= (3, 0)
-print(_global_python3)
 
 if _global_python3:
     from io import StringIO
@@ -289,7 +288,7 @@ def execute_script(message):
         sys.stdout = output
         sys.stderr = error
         try:
-            exec script in _global_env
+            exec (script, _global_env)
         except Exception:
             print('Got an exception executing script')
             traceback.print_exc(file=error)

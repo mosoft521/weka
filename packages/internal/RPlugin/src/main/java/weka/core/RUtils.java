@@ -52,6 +52,8 @@ public class RUtils {
     q = q.replace("{", "_obr_").replace("}", "_cbr_");
     q = q.replace("!", "_exl_").replace(";", "_semiC_");
     q = q.replace("/", "_div_").replace("@", "_at_").replace("+", "_plus_");
+    q = q.replace("=", "_eq_").replace("?", "_qm_");
+    q = q.replace( ">", "_gr_" ).replace( "<", "_lt_" );
 
     return q;
   }
