@@ -259,9 +259,6 @@ public abstract class AbstractFileLoader extends AbstractLoader implements
 
     result = new StringBuffer("\nUsage:\n");
     result.append("\t" + loader.getClass().getName().replaceAll(".*\\.", ""));
-    if (loader instanceof OptionHandler) {
-      result.append(" [options]");
-    }
     result.append(" <");
     String[] ext = loader.getFileExtensions();
     for (int i = 0; i < ext.length; i++) {
@@ -270,7 +267,11 @@ public abstract class AbstractFileLoader extends AbstractLoader implements
       }
       result.append("file" + ext[i]);
     }
-    result.append(">\n");
+    result.append(">");
+    if (loader instanceof OptionHandler) {
+      result.append(" [options]");
+    }
+    result.append("\n");
 
     if (loader instanceof OptionHandler) {
       result.append("\nOptions:\n\n");
@@ -305,6 +306,8 @@ public abstract class AbstractFileLoader extends AbstractLoader implements
     }
 
     if (options.length > 0) {
+      String fileName = options[0];
+      options[0] = "";
       if (loader instanceof OptionHandler) {
         // set options
         try {
@@ -323,7 +326,7 @@ public abstract class AbstractFileLoader extends AbstractLoader implements
       }
 
       try {
-        loader.setFile(new File(options[0]));
+        loader.setFile(new File(fileName));
         // incremental
         if (loader instanceof IncrementalConverter) {
           Instances structure = loader.getStructure();
