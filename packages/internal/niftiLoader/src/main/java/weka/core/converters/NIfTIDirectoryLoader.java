@@ -127,7 +127,7 @@ public class NIfTIDirectoryLoader extends AbstractLoader implements
 
   /**
    * Parses a given list of options.
-   * <p/>
+   * <p>
    * 
    <!-- options-start -->
    * Valid options are: <p>
@@ -612,8 +612,7 @@ public class NIfTIDirectoryLoader extends AbstractLoader implements
       System.err.println("\nUsage:\n" + "\tNIfTIDirectoryLoader [options]\n"
         + "\n" + "Options:\n");
 
-      Enumeration<Option> enm =
-        ((OptionHandler) new NIfTIDirectoryLoader()).listOptions();
+      Enumeration<Option> enm = (new NIfTIDirectoryLoader()).listOptions();
       while (enm.hasMoreElements()) {
         Option option = enm.nextElement();
         System.err.println(option.synopsis());
