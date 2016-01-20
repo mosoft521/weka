@@ -21,16 +21,22 @@
 
 package weka.gui;
 
+import weka.core.Environment;
+import weka.core.Settings;
+import weka.core.Utils;
+
+import javax.swing.JOptionPane;
+import javax.swing.UIDefaults;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
+import java.awt.Dimension;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
-
-import javax.swing.JOptionPane;
-import javax.swing.UIManager;
-import javax.swing.UIManager.LookAndFeelInfo;
-
-import weka.core.Utils;
 
 /**
  * A little helper class for setting the Look and Feel of the user interface.
@@ -62,6 +68,22 @@ public class LookAndFeel {
           + "or the directory that java was started from\n", "LookAndFeel",
         JOptionPane.ERROR_MESSAGE);
     }
+  }
+
+  /**
+   * Get a list of fully qualified class names of available look and feels
+   * 
+   * @return a list of look and feel class names that are available on this
+   *         platform
+   */
+  public static List<String> getAvailableLookAndFeelClasses() {
+    List<String> lafs = new LinkedList<String>();
+
+    for (UIManager.LookAndFeelInfo i : UIManager.getInstalledLookAndFeels()) {
+      lafs.add(i.getClassName());
+    }
+
+    return lafs;
   }
 
   /**
@@ -97,12 +119,42 @@ public class LookAndFeel {
             }
           });
       }
+
+      // workaround for scrollbar handle disappearing bug in Nimbus LAF:
+      // https://bugs.openjdk.java.net/browse/JDK-8134828
+      if (classname.toLowerCase().contains("nimbus")) {
+        javax.swing.LookAndFeel lookAndFeel = UIManager.getLookAndFeel();
+        UIDefaults defaults = lookAndFeel.getDefaults();
+        defaults.put("ScrollBar.minimumThumbSize", new Dimension(30, 30));
+      }
     } catch (Exception e) {
       e.printStackTrace();
       result = false;
     }
 
     return result;
+  }
+
+  /**
+   * Set the look and feel from loaded settings
+   *
+   * @param appID the ID of the application to load settings for
+   * @param lookAndFeelKey the key to look up the look and feel in the settings
+   * @throws IOException if a problem occurs when loading settings
+   */
+  public static void setLookAndFeel(String appID, String lookAndFeelKey)
+    throws IOException {
+    Settings forLookAndFeelOnly = new Settings("weka", appID);
+
+    String laf =
+      forLookAndFeelOnly.getSetting(appID, lookAndFeelKey, "",
+        Environment.getSystemWide());
+
+    if (laf.length() > 0 && laf.contains(".")
+      && LookAndFeel.setLookAndFeel(laf)) {
+    } else {
+      LookAndFeel.setLookAndFeel();
+    }
   }
 
   /**
