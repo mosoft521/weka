@@ -4,17 +4,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>nz.ac.waikato.cms.weka</groupId>
-  <artifactId>weka-dev</artifactId>
-  <version>3.7.14-SNAPSHOT</version><!-- weka-version -->
+  <artifactId>iterativeAbsoluteErrorRegression</artifactId>
+  <version>1.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>weka-dev</name>
-  <description>The Waikato Environment for Knowledge Analysis (WEKA), a machine 
-  learning workbench. This version represents the developer version, the
-  "bleeding edge" of development, you could say. New functionality gets added
-  to this version.
-  </description>
-  <url>http://www.cms.waikato.ac.nz/ml/weka/</url>
+  <name>iterativeAbsoluteErrorRegression</name>
+  <description>
+    Provides a regression scheme that uses Schlossmacher's iteratively reweighted least squares method to fit a model that minimizes absolute error. The scheme can be used with any base learner in WEKA that performs least-squares regression</description>
+  <url>http://weka.sourceforge.net/doc.packages/iterativeAbsoluteErrorRegression</url>
   <organization>
     <name>University of Waikato, Hamilton, NZ</name>
     <url>http://www.waikato.ac.nz/</url>
@@ -29,9 +26,8 @@
 
   <developers>
     <developer>
-      <id>wekateam</id>
-      <name>The WEKA Team</name>
-      <email>wekalist@list.waikato.ac.nz</email>
+      <id>eibe</id>
+      <name>Eibe Frank</name>
     </developer>
   </developers>
 
@@ -51,9 +47,9 @@
   </parent>
 
   <scm>
-    <connection>scm:svn:https://svn.cms.waikato.ac.nz/svn/weka/trunk/weka</connection>
-    <developerConnection>scm:svn:https://svn.cms.waikato.ac.nz/svn/weka/trunk/weka</developerConnection>
-    <url>https://svn.cms.waikato.ac.nz/svn/weka/trunk/weka</url>
+    <connection>scm:svn:https://svn.cms.waikato.ac.nz/svn/weka/trunk/packages/internal/iterativeAbsoluteErrorRegression</connection>
+    <developerConnection>scm:svn:https://svn.cms.waikato.ac.nz/svn/weka/trunk/packages/internal/iterativeAbsoluteErrorRegression</developerConnection>
+    <url>https://svn.cms.waikato.ac.nz/svn/weka/trunk/packages/internal/iterativeAbsoluteErrorRegression</url>
   </scm>
 
   <profiles>
@@ -96,43 +92,30 @@
 
   <dependencies>
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.2</version>
+      <groupId>nz.ac.waikato.cms.weka</groupId>
+      <artifactId>weka-dev</artifactId>
+      <version>[3.7.1,)</version>
+    </dependency>
+
+    <dependency>
+      <groupId>nz.ac.waikato.cms.weka</groupId>
+      <artifactId>weka-dev</artifactId>
+      <version>[3.7.1,)</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>nz.ac.waikato.cms.weka.thirdparty</groupId>
-      <artifactId>java-cup-11b</artifactId>
-      <version>2015.03.26</version>
-      <scope>compile</scope>
-    </dependency>    
-
-    <dependency>
-      <groupId>nz.ac.waikato.cms.weka.thirdparty</groupId>
-      <artifactId>java-cup-11b-runtime</artifactId>
-      <version>2015.03.26</version>
-    </dependency>    
-
-    <dependency>
-      <groupId>nz.ac.waikato.cms.weka.thirdparty</groupId>
-      <artifactId>bounce</artifactId>
-      <version>0.18</version>
-    </dependency>    
-
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
-      <version>1.10</version>
-      <optional>true</optional>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.2</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <weka.main.class>weka.gui.GUIChooser</weka.main.class>
   </properties>
 
   <build>
@@ -221,8 +204,6 @@
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
             <systemPropertyVariables>
               <weka.test.Regression.root>src/test/resources/wekarefs</weka.test.Regression.root>
-	      <weka.test.maventest>true</weka.test.maventest>
-	      <user.timezone>Pacific/Auckland</user.timezone>
             </systemPropertyVariables>
           </configuration>
         </plugin>
@@ -266,13 +247,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>2.3.2</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>${weka.main.class}</mainClass>
-            </manifest>
-          </archive>
-        </configuration>
         <executions>
           <execution>
             <goals>
@@ -314,8 +288,6 @@
           <subpackages>weka:org</subpackages>
           <show>public</show>
           <outputDirectory>${project.basedir}/doc</outputDirectory>
-          <!-- when using Java 8, use this setting to avoid overly strict javadoclet -->
-          <!--additionalparam>-Xdoclint:none</additionalparam-->
         </configuration>
         <executions>
           <execution>
