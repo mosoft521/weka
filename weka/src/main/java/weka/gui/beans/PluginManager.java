@@ -21,20 +21,13 @@
 
 package weka.gui.beans;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * Class that manages a global map of plugins. The knowledge flow uses this to
@@ -44,34 +37,10 @@ import java.util.TreeMap;
  * 
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
  * @version $Revision$
+ * @deprecated Use weka.core.PluginManager instead
  */
+@Deprecated
 public class PluginManager {
-
-  /**
-   * Global map of plugin classes that is keyed by plugin base class/interface
-   * type. The inner Map then stores individual plugin instances of the
-   * interface type, keyed by plugin name/short title with values the actual
-   * fully qualified class name
-   */
-  protected static Map<String, Map<String, String>> PLUGINS =
-    new HashMap<String, Map<String, String>>();
-
-  /**
-   * Set of concrete fully qualified class names or abstract/interface base
-   * types to "disable". Entries in this list wont ever be returned by any of
-   * the getPlugin() methods. Registering an abstract/interface base name will
-   * disable all concrete implementations of that type
-   */
-  protected static Set<String> DISABLED = new HashSet<String>();
-
-  /**
-   * Global map of plugin resources (loadable from the classpath). Outer map is
-   * keyed by group ID, i.e. an ID of a logical group of resources (e.g.
-   * knowledge flow template files). The inner map then stores individual
-   * resource paths keyed by their short description.
-   */
-  protected static Map<String, Map<String, String>> RESOURCES =
-    new HashMap<String, Map<String, String>>();
 
   /**
    * Add the supplied list of fully qualified class names to the disabled list
@@ -79,9 +48,7 @@ public class PluginManager {
    * @param classnames a list of class names to add
    */
   public static synchronized void addToDisabledList(List<String> classnames) {
-    for (String s : classnames) {
-      addToDisabledList(s);
-    }
+    weka.core.PluginManager.addToDisabledList(classnames);
   }
 
   /**
@@ -90,7 +57,7 @@ public class PluginManager {
    * @param classname the fully qualified name of a class to add
    */
   public static synchronized void addToDisabledList(String classname) {
-    DISABLED.add(classname);
+    weka.core.PluginManager.addToDisabledList(classname);
   }
 
   /**
@@ -101,9 +68,7 @@ public class PluginManager {
    */
   public static synchronized void
     removeFromDisabledList(List<String> classnames) {
-    for (String s : classnames) {
-      removeFromDisabledList(s);
-    }
+    weka.core.PluginManager.removeFromDisabledList(classnames);
   }
 
   /**
@@ -113,7 +78,7 @@ public class PluginManager {
    * @param classname the fully qualified name of a class to remove
    */
   public static synchronized void removeFromDisabledList(String classname) {
-    DISABLED.remove(classname);
+    weka.core.PluginManager.removeFromDisabledList(classname);
   }
 
   /**
@@ -124,7 +89,7 @@ public class PluginManager {
    * @return true if the supplied class name is in the disabled list
    */
   public static boolean isInDisabledList(String classname) {
-    return DISABLED.contains(classname);
+    return weka.core.PluginManager.isInDisabledList(classname);
   }
 
   /**
@@ -135,7 +100,7 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(File propsFile)
     throws Exception {
-    addFromProperties(propsFile, false);
+    weka.core.PluginManager.addFromProperties(propsFile);
   }
 
   /**
@@ -148,9 +113,8 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(File propsFile,
     boolean maintainInsertionOrder) throws Exception {
-    BufferedInputStream bi =
-      new BufferedInputStream(new FileInputStream(propsFile));
-    addFromProperties(bi);
+    weka.core.PluginManager
+      .addFromProperties(propsFile, maintainInsertionOrder);
   }
 
   /**
@@ -161,7 +125,7 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(InputStream propsStream)
     throws Exception {
-    addFromProperties(propsStream, false);
+    weka.core.PluginManager.addFromProperties(propsStream);
   }
 
   /**
@@ -174,13 +138,8 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(InputStream propsStream,
     boolean maintainInsertionOrder) throws Exception {
-    Properties expProps = new Properties();
-
-    expProps.load(propsStream);
-    propsStream.close();
-    propsStream = null;
-
-    addFromProperties(expProps, maintainInsertionOrder);
+    weka.core.PluginManager.addFromProperties(propsStream,
+      maintainInsertionOrder);
   }
 
   /**
@@ -191,7 +150,7 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(Properties props)
     throws Exception {
-    addFromProperties(props, false);
+    weka.core.PluginManager.addFromProperties(props);
   }
 
   /**
@@ -204,68 +163,7 @@ public class PluginManager {
    */
   public static synchronized void addFromProperties(Properties props,
     boolean maintainInsertionOrder) throws Exception {
-    java.util.Enumeration<?> keys = props.propertyNames();
-
-    while (keys.hasMoreElements()) {
-      String baseType = (String) keys.nextElement();
-      String implementations = props.getProperty(baseType);
-      if (baseType.equalsIgnoreCase("*resources*")) {
-        addPluginResourcesFromProperty(implementations);
-      } else {
-        if (implementations != null && implementations.length() > 0) {
-          String[] parts = implementations.split(",");
-          for (String impl : parts) {
-            PluginManager.addPlugin(baseType, impl.trim(), impl.trim(),
-              maintainInsertionOrder);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Add resources from a list. String format for a list of resources (as might
-   * be supplied from a *resources* entry in an property file:<br>
-   * <br>
-   * 
-   * <pre>
-   * [groupID|description|path],[groupID|description|path],...
-   * </pre>
-   * 
-   * @param resourceList a list of resources to add
-   */
-  protected static synchronized void addPluginResourcesFromProperty(
-    String resourceList) {
-
-    // Format: [groupID|description|path],[...],...
-    String[] resources = resourceList.split(",");
-    for (String r : resources) {
-      r = r.trim();
-      if (!r.startsWith("[") || !r.endsWith("]")) {
-        System.err.println("[PluginManager] Malformed resource in: "
-          + resourceList);
-        continue;
-      }
-
-      r = r.replace("[", "").replace("]", "");
-      String[] rParts = r.split("\\|");
-      if (rParts.length != 3) {
-        System.err
-          .println("[PluginManager] Was expecting 3 pipe separated parts in "
-            + "resource spec: " + r);
-        continue;
-      }
-
-      String groupID = rParts[0].trim();
-      String resourceDesc = rParts[1].trim();
-      String resourcePath = rParts[2].trim();
-      if (groupID.length() == 0 || resourceDesc.length() == 0
-        || resourcePath.length() == 0) {
-        System.err.println("[PluginManager] Empty part in resource spec: " + r);
-        continue;
-      }
-      addPluginResource(groupID, resourceDesc, resourcePath);
-    }
+    weka.core.PluginManager.addFromProperties(props, maintainInsertionOrder);
   }
 
   /**
@@ -278,13 +176,8 @@ public class PluginManager {
    */
   public static synchronized void addPluginResource(String resourceGroupID,
     String resourceDescription, String resourcePath) {
-    Map<String, String> groupMap = RESOURCES.get(resourceGroupID);
-    if (groupMap == null) {
-      groupMap = new LinkedHashMap<String, String>();
-      RESOURCES.put(resourceGroupID, groupMap);
-    }
-
-    groupMap.put(resourceDescription, resourcePath);
+    weka.core.PluginManager.addPlugin(resourceGroupID, resourceDescription,
+      resourcePath);
   }
 
   /**
@@ -299,18 +192,8 @@ public class PluginManager {
    */
   public static InputStream getPluginResourceAsStream(String resourceGroupID,
     String resourceDescription) throws IOException {
-    Map<String, String> groupMap = RESOURCES.get(resourceGroupID);
-    if (groupMap == null) {
-      throw new IOException("Unknown resource group ID: " + resourceGroupID);
-    }
-
-    String resourcePath = groupMap.get(resourceDescription);
-    if (resourcePath == null) {
-      throw new IOException("Unknown resource: " + resourceDescription);
-    }
-
-    return PluginManager.class.getClassLoader().getResourceAsStream(
-      resourcePath);
+    return weka.core.PluginManager.getPluginResourceAsStream(resourceGroupID,
+      resourceDescription);
   }
 
   /**
@@ -320,8 +203,7 @@ public class PluginManager {
    * @return the number of resources registered under the supplied group ID
    */
   public static int numResourcesForWithGroupID(String resourceGroupID) {
-    Map<String, String> groupMap = RESOURCES.get(resourceGroupID);
-    return groupMap == null ? 0 : groupMap.size();
+    return weka.core.PluginManager.numResourcesForWithGroupID(resourceGroupID);
   }
 
   /**
@@ -332,8 +214,9 @@ public class PluginManager {
    * @return a map of resources registered under the supplied group ID, or null
    *         if the resourceGroupID is not known to the plugin manager
    */
-  public static Map<String, String> getResourcesWithGroupID(String resourceGroupID) {
-    return RESOURCES.get(resourceGroupID);
+  public static Map<String, String> getResourcesWithGroupID(
+    String resourceGroupID) {
+    return weka.core.PluginManager.getResourcesWithGroupID(resourceGroupID);
   }
 
   /**
@@ -345,20 +228,7 @@ public class PluginManager {
    * @return a set of names of plugins
    */
   public static Set<String> getPluginNamesOfType(String interfaceName) {
-    if (PLUGINS.get(interfaceName) != null) {
-      Set<String> match = PLUGINS.get(interfaceName).keySet();
-      Set<String> result = new LinkedHashSet<String>();
-      for (String s : match) {
-        String impl = PLUGINS.get(interfaceName).get(s);
-        if (!DISABLED.contains(impl)) {
-          result.add(s);
-        }
-      }
-      // return PLUGINS.get(interfaceName).keySet();
-      return result;
-    }
-
-    return null;
+    return weka.core.PluginManager.getPluginNamesOfType(interfaceName);
   }
 
   /**
@@ -373,7 +243,7 @@ public class PluginManager {
    */
   public static void addPlugin(String interfaceName, String name,
     String concreteType) {
-    addPlugin(interfaceName, name, concreteType, false);
+    weka.core.PluginManager.addPlugin(interfaceName, name, concreteType);
   }
 
   /**
@@ -390,15 +260,8 @@ public class PluginManager {
    */
   public static void addPlugin(String interfaceName, String name,
     String concreteType, boolean maintainInsertionOrder) {
-    if (PLUGINS.get(interfaceName) == null) {
-      Map<String, String> pluginsOfInterfaceType =
-        maintainInsertionOrder ? new LinkedHashMap<String, String>()
-          : new TreeMap<String, String>();
-      pluginsOfInterfaceType.put(name, concreteType);
-      PLUGINS.put(interfaceName, pluginsOfInterfaceType);
-    } else {
-      PLUGINS.get(interfaceName).put(name, concreteType);
-    }
+    weka.core.PluginManager.addPlugin(interfaceName, name, concreteType,
+      maintainInsertionOrder);
   }
 
   /**
@@ -410,7 +273,7 @@ public class PluginManager {
    */
   public static void removePlugins(String interfaceName, List<String> names) {
     for (String name : names) {
-      removePlugin(interfaceName, name);
+      weka.core.PluginManager.removePlugins(interfaceName, names);
     }
   }
 
@@ -423,9 +286,7 @@ public class PluginManager {
    * @param name the name/short description of the plugin
    */
   public static void removePlugin(String interfaceName, String name) {
-    if (PLUGINS.get(interfaceName) != null) {
-      PLUGINS.get(interfaceName).remove(name);
-    }
+    weka.core.PluginManager.removePlugin(interfaceName, name);
   }
 
   /**
@@ -438,24 +299,6 @@ public class PluginManager {
    */
   public static Object getPluginInstance(String interfaceType, String name)
     throws Exception {
-    if (PLUGINS.get(interfaceType) == null
-      || PLUGINS.get(interfaceType).size() == 0) {
-      throw new Exception("No plugins of interface type: " + interfaceType
-        + " available!!");
-    }
-
-    Map<String, String> pluginsOfInterfaceType = PLUGINS.get(interfaceType);
-    if (pluginsOfInterfaceType.get(name) == null) {
-      throw new Exception("Can't find named plugin '" + name + "' of type '"
-        + interfaceType + "'!");
-    }
-
-    String concreteImpl = pluginsOfInterfaceType.get(name);
-    Object plugin = null;
-    if (!DISABLED.contains(concreteImpl)) {
-      plugin = Class.forName(concreteImpl).newInstance();
-    }
-
-    return plugin;
+    return weka.core.PluginManager.getPluginInstance(interfaceType, name);
   }
 }

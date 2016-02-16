@@ -25,6 +25,8 @@ import weka.core.BatchPredictor;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.Utils;
+import weka.gui.GPCIgnore;
+import weka.gui.beans.KFIgnore;
 
 /**
  * Class that extends Vote in order to implement BatchPredictor. This is of
@@ -34,6 +36,8 @@ import weka.core.Utils;
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
  * @version $Revision: $
  */
+@KFIgnore
+@GPCIgnore
 public class BatchPredictorVote extends Vote implements BatchPredictor {
 
   /** For serialization */
@@ -127,5 +131,16 @@ public class BatchPredictorVote extends Vote implements BatchPredictor {
     }
 
     return preds;
+  }
+
+  @Override
+  public boolean implementsMoreEfficientBatchPrediction() {
+    for (int i = 0; i < m_Classifiers.length; i++) {
+      if (!((BatchPredictor) m_Classifiers[i])
+        .implementsMoreEfficientBatchPrediction()) {
+        return false;
+      }
+    }
+    return true;
   }
 }

@@ -26,7 +26,7 @@ import weka.core.Environment;
 import weka.core.Settings;
 import weka.core.WekaException;
 import weka.gui.Logger;
-import weka.gui.beans.PluginManager;
+import weka.core.PluginManager;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -86,7 +86,7 @@ public class BaseExecutionEnvironment implements ExecutionEnvironment {
   protected transient Logger m_log;
 
   /** Log handler to wrap log in */
-  protected transient LogHandler m_logHandler;
+  protected transient LogManager m_logHandler;
 
   /** The level to log at */
   protected LoggingLevel m_loggingLevel = LoggingLevel.BASIC;
@@ -178,11 +178,11 @@ public class BaseExecutionEnvironment implements ExecutionEnvironment {
   public void setLog(Logger log) {
     m_log = log;
     if (m_logHandler == null) {
-      m_logHandler = new LogHandler(m_log);
+      m_logHandler = new LogManager(m_log);
       m_logHandler.m_statusMessagePrefix =
         "BaseExecutionEnvironment$" + hashCode() + "|";
     }
-    m_logHandler.setLogger(m_log);
+    m_logHandler.setLog(m_log);
   }
 
   /**
@@ -388,11 +388,19 @@ public class BaseExecutionEnvironment implements ExecutionEnvironment {
     }
   }
 
+  /**
+   * Get default settings for the base execution environment
+   *
+   * @return the default settings
+   */
   @Override
   public Defaults getDefaultSettings() {
     return new BaseExecutionEnvironmentDefaults();
   }
 
+  /**
+   * Defaults for the base execution environment
+   */
   public static class BaseExecutionEnvironmentDefaults extends Defaults {
 
     public static final Settings.SettingKey STEP_EXECUTOR_SERVICE_NUM_THREADS_KEY =

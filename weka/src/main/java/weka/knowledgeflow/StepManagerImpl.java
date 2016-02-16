@@ -122,7 +122,7 @@ public class StepManagerImpl implements StepManager {
   protected Settings m_settings = new Settings("weka", KFDefaults.APP_ID);
 
   /** The log to use */
-  protected LogHandler m_log;
+  protected LogManager m_log;
 
   /** For measuring performance of instance streams */
   protected transient StreamThroughput m_throughput;
@@ -290,8 +290,8 @@ public class StepManagerImpl implements StepManager {
   @Override
   public Settings getSettings() {
     if (getExecutionEnvironment() == null) {
-      throw new IllegalStateException(
-        "There is no execution environment " + "available!");
+      throw new IllegalStateException("There is no execution environment "
+        + "available!");
     }
     return getExecutionEnvironment().getSettings();
   }
@@ -333,7 +333,7 @@ public class StepManagerImpl implements StepManager {
    */
   public void setLoggingLevel(LoggingLevel newLevel) {
     if (m_log == null) {
-      m_log = new LogHandler(getManagedStep());
+      m_log = new LogManager(getManagedStep());
     }
     m_log.setLoggingLevel(newLevel);
   }
@@ -354,11 +354,9 @@ public class StepManagerImpl implements StepManager {
    * @param log the log to use
    */
   public void setLog(Logger log) {
-    if (m_log == null) {
-      m_log = new LogHandler(getManagedStep());
-    }
+    m_log = new LogManager(getManagedStep());
 
-    m_log.setLogger(log);
+    m_log.setLog(log);
   }
 
   /**
@@ -614,8 +612,8 @@ public class StepManagerImpl implements StepManager {
    * @param step the source step component that is connecting with given
    *          connection type
    */
-  public void addIncomingConnection(String connectionName,
-    StepManagerImpl step) {
+  public void
+    addIncomingConnection(String connectionName, StepManagerImpl step) {
     List<StepManager> steps = m_connectedByTypeIncoming.get(connectionName);
     if (steps == null) {
       steps = new ArrayList<StepManager>();
@@ -692,19 +690,17 @@ public class StepManagerImpl implements StepManager {
    * @return a list of connected steps
    */
   @Override
-  public List<StepManager>
-    getIncomingConnectedStepsOfConnectionType(String connectionName) {
-    return m_connectedByTypeIncoming.get(connectionName) != null
-      ? m_connectedByTypeIncoming.get(connectionName)
-      : new ArrayList<StepManager>();
+  public List<StepManager> getIncomingConnectedStepsOfConnectionType(
+    String connectionName) {
+    return m_connectedByTypeIncoming.get(connectionName) != null ? m_connectedByTypeIncoming
+      .get(connectionName) : new ArrayList<StepManager>();
   }
 
   @Override
-  public List<StepManager>
-    getOutgoingConnectedStepsOfConnectionType(String connectionName) {
-    return m_connectedByTypeOutgoing.get(connectionName) != null
-      ? m_connectedByTypeOutgoing.get(connectionName)
-      : new ArrayList<StepManager>();
+  public List<StepManager> getOutgoingConnectedStepsOfConnectionType(
+    String connectionName) {
+    return m_connectedByTypeOutgoing.get(connectionName) != null ? m_connectedByTypeOutgoing
+      .get(connectionName) : new ArrayList<StepManager>();
   }
 
   private StepManager getConnectedStepWithName(String stepName,
@@ -780,6 +776,7 @@ public class StepManagerImpl implements StepManager {
       m_outputListeners.get(outputConnectionName);
     if (listenersForConnectionType == null) {
       listenersForConnectionType = new ArrayList<StepOutputListener>();
+      m_outputListeners.put(outputConnectionName, listenersForConnectionType);
     }
 
     if (!listenersForConnectionType.contains(listener)) {
@@ -915,11 +912,10 @@ public class StepManagerImpl implements StepManager {
         notifyOutputListeners(d);
       }
 
-      for (Map.Entry<StepManagerImpl, List<Data>> e : stepsToSendTo
-        .entrySet()) {
+      for (Map.Entry<StepManagerImpl, List<Data>> e : stepsToSendTo.entrySet()) {
         if (!e.getKey().isStopRequested()) {
-          m_executionEnvironment.sendDataToStep(e.getKey(),
-            e.getValue().toArray(new Data[e.getValue().size()]));
+          m_executionEnvironment.sendDataToStep(e.getKey(), e.getValue()
+            .toArray(new Data[e.getValue().size()]));
         }
       }
     }
@@ -952,8 +948,7 @@ public class StepManagerImpl implements StepManager {
         }
       }
 
-      if (namedTarget != null
-        && !namedTarget.isStopRequested()) {
+      if (namedTarget != null && !namedTarget.isStopRequested()) {
         m_executionEnvironment.sendDataToStep(namedTarget, data);
       } else {
         // TODO log an error here and stop?
@@ -1128,7 +1123,7 @@ public class StepManagerImpl implements StepManager {
     if (getIncomingConnectedStepsOfConnectionType(connectionName).size() == 1) {
       return ((StepManagerImpl) getIncomingConnectedStepsOfConnectionType(
         connectionName).get(0)).getManagedStep()
-          .outputStructureForConnectionType(connectionName);
+        .outputStructureForConnectionType(connectionName);
     }
 
     return null;
@@ -1153,6 +1148,11 @@ public class StepManagerImpl implements StepManager {
       .outputStructureForConnectionType(connectionName);
   }
 
+  /**
+   * Log a message at the low logging level
+   *
+   * @param message the message to log
+   */
   @Override
   public void logLow(String message) {
     if (m_log != null) {
@@ -1160,6 +1160,11 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log a message at the basic logging level
+   *
+   * @param message the message to log
+   */
   @Override
   public void logBasic(String message) {
     if (m_log != null) {
@@ -1167,6 +1172,11 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log a message at the detailed logging level
+   *
+   * @param message the message to log
+   */
   @Override
   public void logDetailed(String message) {
     if (m_log != null) {
@@ -1174,6 +1184,11 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log a message at the debugging logging level
+   *
+   * @param message the message to log
+   */
   @Override
   public void logDebug(String message) {
     if (m_log != null) {
@@ -1181,6 +1196,11 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log a warning message
+   *
+   * @param message the message to log
+   */
   @Override
   public void logWarning(String message) {
     if (m_log != null) {
@@ -1189,6 +1209,12 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log an error
+   *
+   * @param message the message to log
+   * @param cause the optional Throwable to log
+   */
   @Override
   public void logError(String message, Throwable cause) {
     if (m_log != null) {
@@ -1201,6 +1227,11 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Output a status message to the status area of the log
+   *
+   * @param message the message to output
+   */
   @Override
   public void statusMessage(String message) {
     if (m_log != null) {
@@ -1208,6 +1239,12 @@ public class StepManagerImpl implements StepManager {
     }
   }
 
+  /**
+   * Log a message at the supplied logging level
+   *
+   * @param message the message to write
+   * @param level the level for the message
+   */
   @Override
   public void log(String message, LoggingLevel level) {
     if (m_log != null) {
@@ -1256,10 +1293,10 @@ public class StepManagerImpl implements StepManager {
   public Step getInfoStep(Class stepClass) throws WekaException {
     Step info = getInfoStep();
     if (!(info.getClass() == stepClass)) {
-      throw new WekaException(
-        "The managed step (" + info.getClass().getCanonicalName() + ") is not "
-          + "not an instance of the required class: "
-          + stepClass.getCanonicalName());
+      throw new WekaException("The managed step ("
+        + info.getClass().getCanonicalName() + ") is not "
+        + "not an instance of the required class: "
+        + stepClass.getCanonicalName());
     }
 
     return info;
@@ -1278,8 +1315,8 @@ public class StepManagerImpl implements StepManager {
       return getManagedStep();
     }
 
-    throw new WekaException(
-      "There are no outgoing info connections from " + "this step!");
+    throw new WekaException("There are no outgoing info connections from "
+      + "this step!");
   }
 
   /**
@@ -1296,6 +1333,12 @@ public class StepManagerImpl implements StepManager {
     return flow.findStep(stepNameToFind);
   }
 
+  /**
+   * Gets a prefix for the step managed by this manager. Used to uniquely
+   * identify steps in the status area of the log
+   *
+   * @return a unique prefix for the step managed by this manager
+   */
   public String stepStatusMessagePrefix() {
     String prefix =
       (getManagedStep() != null ? getManagedStep().getName() : "Unknown") + "$";
@@ -1326,8 +1369,8 @@ public class StepManagerImpl implements StepManager {
    */
   protected static boolean connectionIsIncremental(Data conn) {
     return conn.getConnectionName().equalsIgnoreCase(StepManager.CON_INSTANCE)
-      || conn.getConnectionName()
-        .equalsIgnoreCase(StepManager.CON_INCREMENTAL_CLASSIFIER)
+      || conn.getConnectionName().equalsIgnoreCase(
+        StepManager.CON_INCREMENTAL_CLASSIFIER)
       || conn.getConnectionName().equalsIgnoreCase(StepManager.CON_CHART)
       || conn.getPayloadElement(StepManager.CON_AUX_DATA_IS_INCREMENTAL, false);
   }

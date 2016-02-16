@@ -40,7 +40,7 @@ public abstract class StepTask<T> implements Callable<ExecutionResult<T>>,
   protected transient StepTaskCallback<T> m_callback;
 
   /** The log to use */
-  protected LogHandler m_log;
+  protected LogManager m_log;
 
   /** True if this is a high resource (cpu/memory) task */
   protected boolean m_resourceIntensive = true;
@@ -92,16 +92,31 @@ public abstract class StepTask<T> implements Callable<ExecutionResult<T>>,
    * @param callback the callback to use
    * @param resourceIntensive true if this task is cpu/memory intensive
    */
-  public StepTask(Step source, StepTaskCallback<T> callback, boolean resourceIntensive) {
-    m_log = new LogHandler(source);
+  public StepTask(Step source, StepTaskCallback<T> callback,
+    boolean resourceIntensive) {
+    m_log = new LogManager(source);
     m_callback = callback;
     m_resourceIntensive = resourceIntensive;
   }
 
+  /**
+   * Set whether this {@code StepTask} is resource intensive (cpu/memory) or
+   * not. By default, a {@code StepTask} is resource intensive
+   *
+   * @param resourceIntensive false if this {@code StepTask} is not resource
+   *          intensive
+   */
   public void setResourceIntensive(boolean resourceIntensive) {
     m_resourceIntensive = resourceIntensive;
   }
 
+  /**
+   * Get whether this {@code StepTask} is resource intensive (cpu/memory) or
+   * not. By default, a {@code StepTask} is resource intensive
+   *
+   * @return false if this {@code StepTask} is not resource
+   *          intensive
+   */
   public boolean isResourceIntensive() {
     return m_resourceIntensive;
   }
@@ -132,7 +147,7 @@ public abstract class StepTask<T> implements Callable<ExecutionResult<T>>,
    *
    * @return the LogHandler
    */
-  protected final LogHandler getLogHandler() {
+  protected final LogManager getLogHandler() {
     return m_log;
   }
 
@@ -142,7 +157,7 @@ public abstract class StepTask<T> implements Callable<ExecutionResult<T>>,
    *
    * @param log the log to use
    */
-  protected final void setLogHandler(LogHandler log) {
+  protected final void setLogHandler(LogManager log) {
     m_log = log;
   }
 

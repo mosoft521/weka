@@ -22,12 +22,12 @@
 package weka.knowledgeflow;
 
 import weka.core.Environment;
+import weka.core.PluginManager;
 import weka.core.Settings;
 import weka.core.Utils;
 import weka.core.WekaException;
 import weka.core.WekaPackageManager;
 import weka.gui.Logger;
-import weka.gui.beans.PluginManager;
 import weka.gui.knowledgeflow.KnowledgeFlowApp;
 import weka.knowledgeflow.steps.Note;
 
@@ -59,16 +59,13 @@ public class FlowRunner implements FlowExecutor {
   protected transient Logger m_log = new SimpleLogger();
 
   /** Local log handler for FlowRunner-specific logging */
-  protected transient LogHandler m_logHandler;
+  protected transient LogManager m_logHandler;
 
   /** The level to at which to log at */
   protected LoggingLevel m_loggingLevel = LoggingLevel.BASIC;
 
   /** Invoke start points sequentially? */
   protected boolean m_startSequentially;
-
-  /** Executor service used for launching start points in parallel */
-  // protected ExecutorService m_executorService;
 
   /** Number of worker threads to use in the step executor service */
   protected int m_numThreads =
@@ -81,7 +78,8 @@ public class FlowRunner implements FlowExecutor {
     BaseExecutionEnvironment.BaseExecutionEnvironmentDefaults.RESOURCE_INTENSIVE_EXECUTOR_SERVICE_NUM_THREADS;
 
   /** Callback to notify when execution completes */
-  protected ExecutionFinishedCallback m_callback;
+  protected List<ExecutionFinishedCallback> m_callbacks =
+    new ArrayList<ExecutionFinishedCallback>();
 
   /** Gets set to true if the stopProcessing() method is called */
   protected boolean m_wasStopped;
@@ -143,16 +141,31 @@ public class FlowRunner implements FlowExecutor {
           BaseExecutionEnvironment.BaseExecutionEnvironmentDefaults.RESOURCE_INTENSIVE_EXECUTOR_SERVICE_NUM_THREADS);
   }
 
+  /**
+   * Set the settings to use when executing the Flow
+   *
+   * @param settings the settings to use
+   */
   @Override
   public void setSettings(Settings settings) {
     init(settings);
   }
 
+  /**
+   * Get the settings in use when executing the Flow
+   *
+   * @return the settings
+   */
   @Override
   public Settings getSettings() {
     return m_execEnv.getSettings();
   }
 
+  /**
+   * Main method for executing the FlowRunner
+   *
+   * @param args command line arguments
+   */
   public static void main(String[] args) {
     weka.core.logging.Logger.log(weka.core.logging.Logger.Level.INFO,
       "Logging started");
@@ -191,8 +204,21 @@ public class FlowRunner implements FlowExecutor {
    * @param callback the callback to notify
    */
   @Override
-  public void setExecutionFinishedCallback(ExecutionFinishedCallback callback) {
-    m_callback = callback;
+  public void addExecutionFinishedCallback(ExecutionFinishedCallback callback) {
+    if (!m_callbacks.contains(callback)) {
+      m_callbacks.add(callback);
+    }
+  }
+
+  /**
+   * Remove a callback
+   *
+   * @param callback the callback to remove
+   */
+  @Override
+  public void
+    removeExecutionFinishedCallback(ExecutionFinishedCallback callback) {
+    m_callbacks.remove(callback);
   }
 
   /**
@@ -299,48 +325,40 @@ public class FlowRunner implements FlowExecutor {
    *
    * @throws WekaException if a problem occurs
    */
-  protected void run() throws WekaException {
+  public void run() throws WekaException {
     if (m_flow == null) {
       throw new WekaException("No flow to execute!");
     }
 
-    m_logHandler = new LogHandler(m_log);
-    m_logHandler.setLoggingLevel(m_loggingLevel);
-    m_logHandler.m_statusMessagePrefix = "FlowRunner$" + hashCode() + "|";
-    List<StepManagerImpl> startPoints = m_flow.findPotentialStartPoints();
-    if (startPoints.size() == 0) {
-      m_logHandler.logError("FlowRunner: there don't appear to be any "
-        + "start points to launch!", null);
-      return;
-    }
-
-    if (!m_flow.initFlow(this)) {
-      throw new WekaException(
-        "Flow did not initializeFlow properly - check log.");
-    }
-
     if (m_startSequentially) {
-      runSequentially(startPoints);
+      runSequentially();
     } else {
-      runParallel(startPoints);
+      runParallel();
     }
   }
 
+  /**
+   * Initialize the flow ready for execution
+   *
+   * @return a list of start points in the Flow
+   * @throws WekaException if a problem occurs during initialization
+   */
   protected List<StepManagerImpl> initializeFlow() throws WekaException {
     m_wasStopped = false;
     if (m_flow == null) {
       m_wasStopped = true;
-      if (m_callback != null) {
-        m_callback.executionFinished();
+      for (ExecutionFinishedCallback c : m_callbacks) {
+        c.executionFinished();
       }
+
       throw new WekaException("No flow to execute!");
     }
 
-    m_logHandler = new LogHandler(m_log);
+    m_logHandler = new LogManager(m_log);
     m_logHandler.m_statusMessagePrefix = "FlowRunner$" + hashCode() + "|";
-    setLoggingLevel(m_execEnv.getSettings().getSetting(KFDefaults.APP_ID,
-      KFDefaults.LOGGING_LEVEL_KEY, LoggingLevel.BASIC,
-      Environment.getSystemWide()));
+    setLoggingLevel(m_execEnv.getSettings().getSetting(
+      KFDefaults.MAIN_PERSPECTIVE_ID, KFDefaults.LOGGING_LEVEL_KEY,
+      LoggingLevel.BASIC, Environment.getSystemWide()));
     m_logHandler.setLoggingLevel(m_loggingLevel);
 
     List<StepManagerImpl> startPoints = m_flow.findPotentialStartPoints();
@@ -348,9 +366,10 @@ public class FlowRunner implements FlowExecutor {
       m_wasStopped = true;
       m_logHandler.logError("FlowRunner: there don't appear to be any "
         + "start points to launch!", null);
-      if (m_callback != null) {
-        m_callback.executionFinished();
+      for (ExecutionFinishedCallback c : m_callbacks) {
+        c.executionFinished();
       }
+
       return null;
     }
 
@@ -360,8 +379,8 @@ public class FlowRunner implements FlowExecutor {
 
     if (!m_flow.initFlow(this)) {
       m_wasStopped = true;
-      if (m_callback != null) {
-        m_callback.executionFinished();
+      for (ExecutionFinishedCallback c : m_callbacks) {
+        c.executionFinished();
       }
       throw new WekaException(
         "Flow did not initializeFlow properly - check log.");
@@ -370,6 +389,11 @@ public class FlowRunner implements FlowExecutor {
     return startPoints;
   }
 
+  /**
+   * Run the flow by launching start points sequentially.
+   *
+   * @throws WekaException if a problem occurs
+   */
   @Override
   public void runSequentially() throws WekaException {
     List<StepManagerImpl> startPoints = initializeFlow();
@@ -379,6 +403,11 @@ public class FlowRunner implements FlowExecutor {
     runSequentially(startPoints);
   }
 
+  /**
+   * Run the flow by launching start points in parallel
+   *
+   * @throws WekaException if a problem occurs
+   */
   @Override
   public void runParallel() throws WekaException {
     List<StepManagerImpl> startPoints = initializeFlow();
@@ -488,6 +517,10 @@ public class FlowRunner implements FlowExecutor {
     launchExecutorShutdownThread();
   }
 
+  /**
+   * Launch a thread to monitor the progress of the flow, and then shutdown the
+   * executor service once all steps have completed.
+   */
   protected void launchExecutorShutdownThread() {
     if (m_execEnv != null) {
       Thread shutdownThread = new Thread() {
@@ -496,8 +529,8 @@ public class FlowRunner implements FlowExecutor {
           waitUntilFinished();
           m_logHandler.logDebug("FlowRunner: Shutting down executor service");
           m_execEnv.stopClientExecutionService();
-          if (m_callback != null) {
-            m_callback.executionFinished();
+          for (ExecutionFinishedCallback c : m_callbacks) {
+            c.executionFinished();
           }
         }
       };
@@ -508,7 +541,7 @@ public class FlowRunner implements FlowExecutor {
   /**
    * Wait until all the steps are no longer busy
    */
-  private void waitUntilFinished() {
+  public void waitUntilFinished() {
     try {
       Thread.sleep(500);
       while (true) {
@@ -552,7 +585,7 @@ public class FlowRunner implements FlowExecutor {
     while (iter.hasNext()) {
       iter.next().stopStep();
     }
-    System.err.println("Stopped all steps...");
+    System.err.println("Asked all steps to stop...");
     m_wasStopped = true;
   }
 

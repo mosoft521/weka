@@ -10,7 +10,7 @@ import weka.knowledgeflow.FlowExecutor;
 import weka.knowledgeflow.FlowRunner;
 import weka.knowledgeflow.JSONFlowUtils;
 import weka.knowledgeflow.KFDefaults;
-import weka.knowledgeflow.LogHandler;
+import weka.knowledgeflow.LogManager;
 import weka.knowledgeflow.StepManager;
 import weka.knowledgeflow.StepManagerImpl;
 
@@ -718,7 +718,7 @@ public class VisibleLayout extends JPanel {
     m_flowExecutor.getExecutionEnvironment().setEnvironmentVariables(m_env);
     m_isExecuting = true;
     m_flowExecutor
-      .setExecutionFinishedCallback(new ExecutionFinishedCallback() {
+      .addExecutionFinishedCallback(new ExecutionFinishedCallback() {
         @Override
         public void executionFinished() {
           m_isExecuting = false;
@@ -1049,7 +1049,7 @@ public class VisibleLayout extends JPanel {
       m_logPanel
         .statusMessage("@!@[KnowledgeFlow]|Unable to load flow (see log).");
       m_logPanel.logMessage("[KnowledgeFlow] Unable to load flow\n"
-        + LogHandler.stackTraceToString(e));
+        + LogManager.stackTraceToString(e));
       m_mainPerspective.showErrorDialog(e);
     }
 

@@ -33,7 +33,7 @@ import weka.gui.knowledgeflow.KFGUIConsts;
 import weka.knowledgeflow.Data;
 import weka.knowledgeflow.StepManager;
 
-import javax.swing.JFileChooser;
+import javax.swing.*;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -93,7 +93,10 @@ public class Sorter extends BaseStep {
   /** format of instances for current incoming connection (if any) */
   protected Instances m_connectedFormat;
 
+  /** True if we've been reset */
   protected boolean m_isReset;
+
+  /** True if processing streaming data */
   protected boolean m_streaming;
 
   /** To (re)use when streaming */
@@ -162,6 +165,11 @@ public class Sorter extends BaseStep {
     return m_sortDetails;
   }
 
+  /**
+   * Initialize the step.
+   *
+   * @throws WekaException if a problem occurs during initialization
+   */
   @Override
   public void stepInit() throws WekaException {
     m_isReset = true;
@@ -171,6 +179,15 @@ public class Sorter extends BaseStep {
     m_streamingData = new Data(StepManager.CON_INSTANCE);
   }
 
+  /**
+   * Get a list of incoming connection types that this step can accept. Ideally
+   * (and if appropriate), this should take into account the state of the step
+   * and any existing incoming connections. E.g. a step might be able to accept
+   * one (and only one) incoming batch data connection.
+   *
+   * @return a list of incoming connections that this step can accept given its
+   *         current state
+   */
   @Override
   public List<String> getIncomingConnectionTypes() {
     if (getStepManager().numIncomingConnections() == 0) {
@@ -181,6 +198,15 @@ public class Sorter extends BaseStep {
     return null;
   }
 
+  /**
+   * Get a list of outgoing connection types that this step can produce. Ideally
+   * (and if appropriate), this should take into account the state of the step
+   * and the incoming connections. E.g. depending on what incoming connection is
+   * present, a step might be able to produce a trainingSet output, a testSet
+   * output or neither, but not both.
+   *
+   * @return a list of outgoing connections that this step can produce
+   */
   @Override
   public List<String> getOutgoingConnectionTypes() {
     List<String> result = new ArrayList<String>();
@@ -204,6 +230,11 @@ public class Sorter extends BaseStep {
     return result;
   }
 
+  /**
+   * Initialize given the supplied instances structure
+   *
+   * @param structure the structure to initialize with
+   */
   protected void init(Instances structure) {
     m_connectedFormat = structure;
     List<SortRule> sortRules = new ArrayList<SortRule>();
@@ -240,6 +271,12 @@ public class Sorter extends BaseStep {
     }
   }
 
+  /**
+   * Process an incoming data payload (if the step accepts incoming connections)
+   *
+   * @param data the data to process
+   * @throws WekaException if a problem occurs
+   */
   @Override
   public void processIncoming(Data data) throws WekaException {
     if (m_isReset) {
@@ -272,6 +309,12 @@ public class Sorter extends BaseStep {
     }
   }
 
+  /**
+   * Process batch data
+   *
+   * @param data the data to process
+   * @throws WekaException if a problem occurs
+   */
   protected void processBatch(Data data) throws WekaException {
     getStepManager().processing();
 
@@ -297,6 +340,12 @@ public class Sorter extends BaseStep {
     getStepManager().outputData(outputD);
   }
 
+  /**
+   * Process incremental data
+   *
+   * @param data the data to process
+   * @throws WekaException if a problem occurs
+   */
   protected void processIncremental(Data data) throws WekaException {
     if (isStopRequested()) {
       return;
@@ -326,6 +375,11 @@ public class Sorter extends BaseStep {
     }
   }
 
+  /**
+   * Output any buffered instances
+   *
+   * @throws WekaException if a problem occurs
+   */
   protected void emitBufferedInstances() throws WekaException {
     if (isStopRequested()) {
       return;
@@ -433,7 +487,7 @@ public class Sorter extends BaseStep {
         return;
       }
       InstanceHolder holder = merger.remove(0);
-      holder.m_instance.setDataset( tempHeader );
+      holder.m_instance.setDataset(tempHeader);
 
       if (m_stringAttIndexes != null) {
         for (String attName : m_stringAttIndexes.keySet()) {
@@ -526,6 +580,12 @@ public class Sorter extends BaseStep {
     }
   }
 
+  /**
+   * Sort the buffer
+   *
+   * @param write true if the buffer sould be written to a tmp file
+   * @throws Exception if a problem occurs
+   */
   private void sortBuffer(boolean write) throws Exception {
     getStepManager().logBasic("Sorting in memory buffer");
     Collections.sort(m_incrementalBuffer, m_sortComparator);
@@ -611,16 +671,28 @@ public class Sorter extends BaseStep {
   }
 
   /**
-   * Comparator that applies the sort rules
+   * Comparator that applies the sort rules to {@code InstanceHolder}s
    */
   protected static class SortComparator implements Comparator<InstanceHolder> {
 
+    /** The rules to apply */
     protected List<SortRule> m_sortRules;
 
+    /**
+     * Constructor
+     *
+     * @param sortRules the rules to apply
+     */
     public SortComparator(List<SortRule> sortRules) {
       m_sortRules = sortRules;
     }
 
+    /**
+     * @param o1 the first {@code InstanceHolder} to compare
+     * @param o2 the second {@code InstanceHolder} to compare
+     * @return the result of the comparison - the first rule that returns a
+     *         non-zero comparison value
+     */
     @Override
     public int compare(InstanceHolder o1, InstanceHolder o2) {
 
@@ -641,19 +713,37 @@ public class Sorter extends BaseStep {
    */
   public static class SortRule implements Comparator<InstanceHolder> {
 
+    /** Name or index of the attribute to compare on */
     protected String m_attributeNameOrIndex;
+
+    /** The actual attribute to compare on */
     protected Attribute m_attribute;
 
+    /** True for descending instead of ascending order */
     protected boolean m_descending;
 
+    /**
+     * Constructor
+     * 
+     * @param att the name or index of the attribute to compare on
+     * @param descending true if order should be descending
+     */
     public SortRule(String att, boolean descending) {
       m_attributeNameOrIndex = att;
       m_descending = descending;
     }
 
+    /**
+     * Constructor
+     */
     public SortRule() {
     }
 
+    /**
+     * Constructor
+     *
+     * @param setup the definition of a sort rule
+     */
     public SortRule(String setup) {
       parseFromInternal(setup);
     }
@@ -669,10 +759,20 @@ public class Sorter extends BaseStep {
       m_descending = parts[1].equalsIgnoreCase("Y");
     }
 
+    /**
+     * Gets the rule in internal format
+     *
+     * @return the rule in internal format
+     */
     public String toStringInternal() {
       return m_attributeNameOrIndex + "@@SR@@" + (m_descending ? "Y" : "N");
     }
 
+    /**
+     * Prints the rule in human readable format
+     *
+     * @return a human readable formatted rule
+     */
     @Override
     public String toString() {
       StringBuffer res = new StringBuffer();
@@ -683,22 +783,49 @@ public class Sorter extends BaseStep {
       return res.toString();
     }
 
+    /**
+     * Set the name or index of the attribute to sort on
+     *
+     * @param att the name or index of tha attribute to sort on
+     */
     public void setAttribute(String att) {
       m_attributeNameOrIndex = att;
     }
 
+    /**
+     * Get the name or index of the attribute to sort on
+     *
+     * @return the name or index of the attribute to sort on
+     */
     public String getAttribute() {
       return m_attributeNameOrIndex;
     }
 
+    /**
+     * Set whether the sort should be descending rather than ascending
+     *
+     * @param d true for a descending sort
+     */
     public void setDescending(boolean d) {
       m_descending = d;
     }
 
+    /**
+     * Return true if the sort is descending
+     * 
+     * @return true if the sort is descending
+     */
     public boolean getDescending() {
       return m_descending;
     }
 
+    /**
+     * Initialize the rule
+     * 
+     * @param env the environment variables to use
+     * @param structure the structure of the instances that the rule will
+     *          opperate on
+     */
     public void init(Environment env, Instances structure) {
       String attNameI = m_attributeNameOrIndex;
       try {
@@ -728,6 +855,13 @@ public class Sorter extends BaseStep {
       }
     }
 
+    /**
+     * Compare two instances according to the rule
+     *
+     * @param o1 the first instance
+     * @param o2 the second instance
+     * @return the result of the comparison
+     */
     @Override
     public int compare(InstanceHolder o1, InstanceHolder o2) {
 
@@ -778,6 +912,14 @@ public class Sorter extends BaseStep {
     }
   }
 
+  /**
+   * Return the fully qualified name of a custom editor component (JComponent)
+   * to use for editing the properties of the step. This method can return null,
+   * in which case the system will dynamically generate an editor using the
+   * GenericObjectEditor
+   *
+   * @return the fully qualified name of a step editor component
+   */
   @Override
   public String getCustomEditorForStep() {
     return "weka.gui.knowledgeflow.steps.SorterStepEditorDialog";
