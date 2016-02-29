@@ -15,60 +15,53 @@
 
 /*
  *    FlowRunnerRemote.java
- *    Copyright (C) 2011-2013 University of Waikato, Hamilton, New Zealand
+ *    Copyright (C) 2016 University of Waikato, Hamilton, New Zealand
  *
  */
 
 package weka.server.knowledgeFlow;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Vector;
-
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.methods.ByteArrayRequestEntity;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.RequestEntity;
-
+import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.boon.json.JsonFactory;
+import org.boon.json.ObjectMapper;
 import weka.core.CommandlineRunnable;
 import weka.core.Environment;
 import weka.core.Option;
 import weka.core.Utils;
-import weka.gui.beans.BeanConnection;
-import weka.gui.beans.BeanInstance;
-import weka.gui.beans.xml.XMLBeans;
+import weka.knowledgeflow.Flow;
+import weka.knowledgeflow.FlowRunner;
 import weka.server.ExecuteTaskServlet;
+import weka.server.JSONProtocol;
 import weka.server.NamedTask;
 import weka.server.Schedule;
 import weka.server.WekaServer;
 import weka.server.WekaServlet;
 
+import java.io.File;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Execute a KnowledgeFlow on a remote server from the command line
  * 
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
- * @version $Revision$
+ * @version $Revision: $
  */
 public class FlowRunnerRemote implements CommandlineRunnable {
 
   /** Prefix for the job on the server */
   public static final String NAME_PREFIX = "KF_";
 
-  /** Values of environment variables/parameters */
-  protected Map<String, String> m_environmentParams = new HashMap<String, String>();
-
   /** The name of the task when executing on the server */
   protected String m_name;
 
-  /** Holds the XML flow to execute */
-  protected StringBuffer m_flowXML;
+  /** Holds the JSON flow to execute */
+  protected String m_flowJSON;
 
   /** Scheduling information */
   protected Schedule m_schedule;
@@ -95,33 +88,16 @@ public class FlowRunnerRemote implements CommandlineRunnable {
   protected String m_password;
 
   /**
-   * Load an XML serialized KnowledgeFlow
+   * Load a serialized KnowledgeFlow
    * 
    * @param fileName the name of the file to load from
    * @throws Exception if something goes wrong
    */
-  public void loadXML(String fileName) throws Exception {
-    if (!fileName.endsWith(".kfml")) {
-      throw new Exception("File must be an XML flow (*.kfml)");
-    }
-
-    // check that we can load/deserialize it locally first
-    BeanConnection.init();
-    BeanInstance.init();
-    XMLBeans xml = new XMLBeans(null, null, 0);
+  public void loadFlow(String fileName) throws Exception {
     File file = new File(fileName);
-    Vector v = (Vector) xml.read(file);
-
+    m_flowJSON =
+      Flow.loadFlow(file, new FlowRunner.SimpleLogger()).toJSON();
     m_name = file.getName().substring(0, file.getName().lastIndexOf("."));
-
-    // now just read in the XML text
-    BufferedReader br = new BufferedReader(new FileReader(file));
-    String line = "";
-    m_flowXML = new StringBuffer();
-
-    while ((line = br.readLine()) != null) {
-      m_flowXML.append(line);
-    }
   }
 
   /**
@@ -157,42 +133,47 @@ public class FlowRunnerRemote implements CommandlineRunnable {
    * 
    * @throws Exception if a problem occurs
    */
+  @SuppressWarnings("unchecked")
   public void executeFlowRemote() throws Exception {
     Exception exception = null;
 
-    NamedTask taskToRun = null;
-
-    if (m_schedule == null) {
-      taskToRun = new UnscheduledNamedKFTask(NAME_PREFIX + m_name, m_flowXML,
+    NamedTask taskToRun =
+      new UnscheduledNamedKnowledgeFlowTask(NAME_PREFIX + m_name, m_flowJSON,
         m_sequential, m_parameters);
-    } else {
-      taskToRun = new ScheduledNamedKFTask(NAME_PREFIX + m_name, m_flowXML,
-        m_sequential, m_parameters, m_schedule);
 
+    if (m_schedule != null) {
+      taskToRun =
+        new ScheduledNamedKnowledgeFlowTask(
+          (UnscheduledNamedKnowledgeFlowTask) taskToRun, m_schedule);
     }
 
-    InputStream is = null;
-    // BufferedInputStream bi = null;
     PostMethod post = null;
-
     try {
 
-      // serialized and compressed
-      byte[] serializedTask = WekaServer.serializeTask(taskToRun);
-      System.out.println("Sending " + serializedTask.length + " bytes...");
+      // JSON task definition
+      Map<String, Object> jsonMap = JSONProtocol.kFTaskToJsonMap(taskToRun);
+      String json = JSONProtocol.encodeToJSONString(jsonMap);
 
-      String service = ExecuteTaskServlet.CONTEXT_PATH + "/?client=Y";
+      // serialized and compressed
+      System.out.println("Sending json task definition...");
+
+      String service =
+        ExecuteTaskServlet.CONTEXT_PATH + "/?" + JSONProtocol.JSON_CLIENT_KEY
+          + "=Y";
       post = new PostMethod(constructURL(service));
-      RequestEntity entity = new ByteArrayRequestEntity(serializedTask);
-      post.setRequestEntity(entity);
+      RequestEntity jsonRequest =
+        new StringRequestEntity(json, JSONProtocol.JSON_MIME_TYPE,
+          JSONProtocol.CHARACTER_ENCODING);
+
+      post.setRequestEntity(jsonRequest);
 
       post.setDoAuthentication(true);
       post.addRequestHeader(new Header("Content-Type",
-        "application/octet-stream"));
+        JSONProtocol.JSON_MIME_TYPE));
 
       // Get HTTP client
-      HttpClient client = WekaServer.ConnectionManager.getSingleton()
-        .createHttpClient();
+      HttpClient client =
+        WekaServer.ConnectionManager.getSingleton().createHttpClient();
       WekaServer.ConnectionManager.addCredentials(client, m_username,
         m_password);
 
@@ -202,12 +183,6 @@ public class FlowRunnerRemote implements CommandlineRunnable {
       System.out.println("Response status from server : " + result);
 
       // the response
-      /*
-       * is = post.getResponseBodyAsStream(); bi = new BufferedInputStream(is);
-       * StringBuffer bodyB = new StringBuffer(); int c; while ((c =
-       * bi.read())!=-1) { bodyB.append((char)c); }
-       */
-
       if (result == 401) {
         // Security problem - authentication required
         /*
@@ -217,39 +192,29 @@ public class FlowRunnerRemote implements CommandlineRunnable {
         System.err
           .println("Unable to send task to server - authentication required.\n");
       } else {
-
-        is = post.getResponseBodyAsStream();
-        ObjectInputStream ois = new ObjectInputStream(is);
-        // System.out.println("Number of bytes in response " + ois.available());
-        Object response = ois.readObject();
-        if (response.toString().startsWith(WekaServlet.RESPONSE_ERROR)) {
-          System.err.println("A problem occurred at the sever : \n" + "\t"
-            + response.toString());
+        String responseS = post.getResponseBodyAsString();
+        ObjectMapper mapper = JsonFactory.create();
+        Map<String, Object> responseMap =
+          mapper.readValue(responseS, Map.class);
+        Object responseType = responseMap.get(JSONProtocol.RESPONSE_TYPE_KEY);
+        if (responseType == null
+          || responseType.toString().startsWith(WekaServlet.RESPONSE_ERROR)) {
+          System.err.println("A problem occurred at the sever : \n");
+          if (responseType == null) {
+            System.err.println("Response was null!");
+          } else {
+            System.err.println(responseMap
+              .get(JSONProtocol.RESPONSE_MESSAGE_KEY));
+          }
         } else {
-          System.out.println("Task ID from server : " + response.toString());
+          String taskID = responseMap.get(JSONProtocol.RESPONSE_MESSAGE_KEY).toString();
+          System.out.println("Task ID from server: " + taskID);
         }
-
-        /*
-         * String body = bodyB.toString(); if
-         * (body.startsWith(WekaServlet.RESPONSE_ERROR)) {
-         * System.err.println("A problem occurred at the sever : \n" + "\t" +
-         * body); } else { System.out.println("Task ID from server : " + body);
-         * }
-         */
       }
-
     } catch (Exception ex) {
       ex.printStackTrace();
       exception = ex;
     } finally {
-      /*
-       * if (bi != null) { bi.close(); }
-       */
-
-      if (is != null) {
-        is.close();
-      }
-
       if (post != null) {
         // Release current connection to the connection pool
         post.releaseConnection();
@@ -268,7 +233,7 @@ public class FlowRunnerRemote implements CommandlineRunnable {
    */
   public static String commandLineUsage() {
     StringBuffer result = new StringBuffer();
-    result.append("Usage: FlowRunnerRemote -file <flowFile.kfml> "
+    result.append("Usage: FlowRunnerRemote -file <flowFile.[kf | kfml]> "
       + "[-sequential] -server <host:[port]> [-username <username>] "
       + "[-password <password>] [-param <name=value>, "
       + "-param <name=value>, ... -- [<schedule options>]");
@@ -284,6 +249,11 @@ public class FlowRunnerRemote implements CommandlineRunnable {
     }
 
     return result.toString();
+  }
+
+  @Override
+  public void preExecution() throws Exception {
+
   }
 
   @Override
@@ -316,7 +286,7 @@ public class FlowRunnerRemote implements CommandlineRunnable {
             System.exit(1);
           }
           flowFile = args[i];
-        } else if (args[i].equalsIgnoreCase("-seqential")) {
+        } else if (args[i].equalsIgnoreCase("-sequential")) {
           m_sequential = true;
           i++;
         } else if (args[i].equalsIgnoreCase("-server")) {
@@ -361,7 +331,7 @@ public class FlowRunnerRemote implements CommandlineRunnable {
       }
 
       try {
-        loadXML(flowFile);
+        loadFlow(flowFile);
       } catch (Exception e) {
         throw new IllegalArgumentException("Unable to load flow '" + args[0]
           + "'");
@@ -373,6 +343,11 @@ public class FlowRunnerRemote implements CommandlineRunnable {
         e.printStackTrace();
       }
     }
+  }
+
+  @Override
+  public void postExecution() throws Exception {
+
   }
 
   /**

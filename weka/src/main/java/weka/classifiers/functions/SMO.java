@@ -21,13 +21,6 @@
 
 package weka.classifiers.functions;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Random;
-import java.util.Vector;
-
 import weka.classifiers.AbstractClassifier;
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.supportVector.Kernel;
@@ -55,6 +48,13 @@ import weka.filters.unsupervised.attribute.NominalToBinary;
 import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.ReplaceMissingValues;
 import weka.filters.unsupervised.attribute.Standardize;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Random;
+import java.util.Vector;
 
 /**
  <!-- globalinfo-start -->
@@ -366,6 +366,12 @@ public class SMO
     /** Stores the weight of the training instances */
     protected double m_sumOfWeights = 0;
 
+    /** number of kernel evaluations, used for printing statistics only **/
+    protected long m_nEvals = -1;
+
+    /** number of kernel cache hits, used for printing statistics only **/
+    protected int m_nCacheHits = -1;
+
     /**
      * Fits calibrator model to SVM's output, so that reasonable probability estimates can be produced.
      * If numFolds > 0, cross-validation is used to generate the training data for the calibrator.
@@ -625,8 +631,16 @@ public class SMO
       // Set threshold
       m_b = (m_bLow + m_bUp) / 2.0;
 
+      // Save some stats
+      m_nEvals = m_kernel.numEvals();
+      m_nCacheHits = m_kernel.numCacheHits();
+
       // Save memory
-      m_kernel.clean();
+      if (m_KernelIsLinear) {
+        m_kernel = null;
+      } else {
+        m_kernel.clean();
+      }
 
       m_errors = null;
       m_I0 = m_I1 = m_I2 = m_I3 = m_I4 = null;
@@ -812,12 +826,9 @@ public class SMO
           text.append("\n\nNumber of support vectors: " +
                   m_supportVectors.numElements());
         }
-        int numEval = 0;
-        int numCacheHits = -1;
-        if (m_kernel != null) {
-          numEval = m_kernel.numEvals();
-          numCacheHits = m_kernel.numCacheHits();
-        }
+        long numEval = m_nEvals;
+        int numCacheHits = m_nCacheHits;
+
         text.append("\n\nNumber of kernel evaluations: " + numEval);
         if (numCacheHits >= 0 && numEval > 0) {
           double hitRatio = 1 - numEval * 1.0 / (numCacheHits + numEval);
@@ -1298,6 +1309,7 @@ public class SMO
     // class
     result.disableAllClasses();
     result.disableAllClassDependencies();
+    result.disable(Capability.NO_CLASS);
     result.enable(Capability.NOMINAL_CLASS);
     result.enable(Capability.MISSING_CLASS_VALUES);
     

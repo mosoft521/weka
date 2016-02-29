@@ -45,6 +45,7 @@ import weka.knowledgeflow.StepTask;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -735,6 +736,10 @@ public class BoundaryPlotter extends BaseStep implements DataCollector {
       }
 
       m_completedImages.put(m_currentDescription, m_osi);
+      Data imageOut = new Data(StepManager.CON_IMAGE, m_osi);
+      imageOut.setPayloadElement(StepManager.CON_AUX_DATA_TEXT_TITLE,
+        m_currentDescription);
+      getStepManager().outputData(imageOut);
     } catch (Exception ex) {
       throw new WekaException(ex);
     }
@@ -962,7 +967,7 @@ public class BoundaryPlotter extends BaseStep implements DataCollector {
    */
   @Override
   public Object retrieveData() {
-    return m_completedImages;
+    return ImageViewer.bufferedImageMapToSerializableByteMap(m_completedImages);
   }
 
   /**
@@ -978,7 +983,13 @@ public class BoundaryPlotter extends BaseStep implements DataCollector {
       throw new IllegalArgumentException("Argument must be a Map");
     }
 
-    m_completedImages = (Map<String, BufferedImage>) data;
+    try {
+      m_completedImages =
+        ImageViewer
+          .byteArrayImageMapToBufferedImageMap((Map<String, byte[]>) data);
+    } catch (IOException ex) {
+      throw new WekaException(ex);
+    }
   }
 
   /**
