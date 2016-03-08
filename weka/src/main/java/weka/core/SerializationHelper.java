@@ -20,23 +20,13 @@
 
 package weka.core;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.util.Vector;
 
 /**
  * A helper class for determining serialVersionUIDs and checking whether classes
  * contain one and/or need one. One can also serialize and deserialize objects
- * to and fro files or streams.
+ * to and from files or streams.
  * 
  * @author fracpete (fracpete at waikato dot ac dot nz)
  * @version $Revision$
