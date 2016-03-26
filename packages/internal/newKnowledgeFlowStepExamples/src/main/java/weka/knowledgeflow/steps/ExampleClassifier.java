@@ -15,7 +15,7 @@
 
 /*
  *    ExampleClassifier.java
- *    Copyright (C) 2015 University of Waikato, Hamilton, New Zealand
+ *    Copyright (C) 2016 University of Waikato, Hamilton, New Zealand
  *
  */
 
@@ -81,7 +81,7 @@ public class ExampleClassifier extends BaseStep implements
   /**
    * Initialize the step
    * 
-   * @throws WekaException
+   * @throws WekaException if a problem occurs
    */
   @Override
   public void stepInit() throws WekaException {
